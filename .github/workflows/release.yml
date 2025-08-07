@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_version: ${{ env.RELEASE_VERSION }}
+    steps:
+    - name: Get the release version from the tag
+      shell: bash
+      if: env.RELEASE_VERSION == ''
+      run: |
+        echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        echo "version is: ${{ env.RELEASE_VERSION }}"
+    
+    - name: Create GitHub release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.RELEASE_VERSION }}
+        release_name: Release ${{ env.RELEASE_VERSION }}
+        body: |
+          ## Changes in ${{ env.RELEASE_VERSION }}
+          
+          ### Features
+          - OpenAPI 3.x specification parsing (JSON/YAML)
+          - MCP server generation for TypeScript and Rust targets
+          - Complete schema reference ($ref) resolution
+          - Comprehensive validation and error handling
+          
+          ### Supported OpenAPI Features
+          - Path operations (GET, POST, PUT, DELETE, PATCH)
+          - Parameters (path, query, header)
+          - Request/response body schemas
+          - Component schema references
+          - Complex nested schemas and arrays
+          - Validation constraints (min/max, enums, formats)
+          
+          See the [README](https://github.com/cosmonic-labs/openapi2mcp/blob/main/README.md) for installation and usage instructions.
+        draft: false
+        prerelease: false
+
+  build-release:
+    name: Build Release
+    needs: ['create-release']
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [linux, macos, windows]
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-gnu
+          archive-name: openapi2mcp-linux.tar.gz
+        - build: macos
+          os: macos-latest
+          rust: stable
+          target: x86_64-apple-darwin
+          archive-name: openapi2mcp-macos.tar.gz
+        - build: windows
+          os: windows-latest
+          rust: stable
+          target: x86_64-pc-windows-msvc
+          archive-name: openapi2mcp-windows.zip
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+        target: ${{ matrix.target }}
+    
+    - name: Build binary
+      run: cargo build --verbose --release --target ${{ matrix.target }}
+      env:
+        RUST_BACKTRACE: 1
+    
+    - name: Strip binary (linux and macos)
+      if: matrix.build == 'linux' || matrix.build == 'macos'
+      run: strip "target/${{ matrix.target }}/release/openapi2mcp"
+    
+    - name: Build archive (Linux and macOS)
+      if: matrix.build != 'windows'
+      run: |
+        staging="openapi2mcp-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
+        mkdir -p "$staging"/{complete,doc}
+        cp {README.md,LICENSE} "$staging/"
+        cp "target/${{ matrix.target }}/release/openapi2mcp" "$staging/"
+        cp -r examples "$staging/"
+        tar czf "$staging.tar.gz" "$staging"
+        echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+    
+    - name: Build archive (Windows)
+      if: matrix.build == 'windows'
+      shell: bash
+      run: |
+        staging="openapi2mcp-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
+        mkdir -p "$staging"/{complete,doc}
+        cp {README.md,LICENSE} "$staging/"
+        cp "target/${{ matrix.target }}/release/openapi2mcp.exe" "$staging/"
+        cp -r examples "$staging/"
+        7z a "$staging.zip" "$staging"
+        echo "ASSET=$staging.zip" >> $GITHUB_ENV
+    
+    - name: Upload release archive
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ${{ env.ASSET }}
+        asset_name: ${{ env.ASSET }}
+        asset_content_type: application/octet-stream
+
+  publish-cargo:
+    name: Publish to Cargo
+    needs: ['create-release']
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Publish to crates.io
+      run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

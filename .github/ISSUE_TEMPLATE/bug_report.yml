@@ -1,0 +1,100 @@
+name: Bug Report
+description: File a bug report to help us improve
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of openapi2mcp are you running?
+      placeholder: e.g., v0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target Language
+      description: Which target language were you using when the bug occurred?
+      options:
+        - TypeScript
+        - Rust
+        - Both
+        - N/A
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened and what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Run command '...'
+        2. With OpenAPI spec '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: openapi-spec
+    attributes:
+      label: OpenAPI Specification
+      description: If applicable, provide the OpenAPI spec that caused the issue (redact sensitive information)
+      render: yaml
+      placeholder: |
+        openapi: "3.0.0"
+        info:
+          title: "Example API"
+          version: "1.0.0"
+        # ... rest of spec
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command Used
+      description: The exact command you ran
+      render: shell
+      placeholder: openapi2mcp -i spec.yaml -o output -t typescript
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Output
+      description: Please copy and paste any relevant log output or error messages
+      render: shell
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other (please specify in additional context)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.

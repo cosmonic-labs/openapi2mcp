@@ -1,0 +1,108 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build benchmarks
+      run: cargo build --release
+    
+    - name: Run parsing benchmarks
+      run: |
+        echo "## Parsing Performance" >> benchmark_results.md
+        echo "| Example | Time | Status |" >> benchmark_results.md  
+        echo "|---------|------|--------|" >> benchmark_results.md
+        
+        for example in examples/*.yaml examples/*.json; do
+          if [ -f "$example" ]; then
+            basename=$(basename "$example")
+            echo "Benchmarking parsing: $basename"
+            
+            # Time the parsing (5 runs, take average)
+            total_time=0
+            for i in {1..5}; do
+              start_time=$(date +%s%N)
+              ./target/release/openapi2mcp -i "$example" -o "/tmp/benchmark-$i" -t typescript > /dev/null 2>&1
+              end_time=$(date +%s%N)
+              runtime=$(( (end_time - start_time) / 1000000 )) # Convert to milliseconds
+              total_time=$(( total_time + runtime ))
+            done
+            
+            avg_time=$(( total_time / 5 ))
+            status="✅ Pass"
+            
+            echo "| $basename | ${avg_time}ms | $status |" >> benchmark_results.md
+          fi
+        done
+    
+    - name: Run generation benchmarks  
+      run: |
+        echo "" >> benchmark_results.md
+        echo "## Code Generation Performance" >> benchmark_results.md
+        echo "| Example | TypeScript | Rust | Status |" >> benchmark_results.md
+        echo "|---------|------------|------|--------|" >> benchmark_results.md
+        
+        for example in examples/*.yaml examples/*.json; do
+          if [ -f "$example" ]; then
+            basename=$(basename "$example")
+            
+            # Benchmark TypeScript generation
+            start_time=$(date +%s%N)
+            ./target/release/openapi2mcp -i "$example" -o "/tmp/benchmark-ts" -t typescript > /dev/null 2>&1
+            end_time=$(date +%s%N)
+            ts_time=$(( (end_time - start_time) / 1000000 ))
+            
+            # Benchmark Rust generation  
+            start_time=$(date +%s%N)
+            ./target/release/openapi2mcp -i "$example" -o "/tmp/benchmark-rust" -t rust > /dev/null 2>&1
+            end_time=$(date +%s%N)
+            rust_time=$(( (end_time - start_time) / 1000000 ))
+            
+            status="✅ Pass"
+            echo "| $basename | ${ts_time}ms | ${rust_time}ms | $status |" >> benchmark_results.md
+          fi
+        done
+    
+    - name: Comment benchmark results on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const results = fs.readFileSync('benchmark_results.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '## 🚀 Performance Benchmarks\n\n' + results
+          })
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmark_results.md

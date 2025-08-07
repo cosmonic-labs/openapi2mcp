@@ -1,0 +1,71 @@
+# Configuration for the pull request labeler
+
+# OpenAPI related changes
+"openapi":
+  - changed-files:
+    - any-glob-to-any-file: 
+      - "src/openapi.rs"
+      - "examples/**/*.yaml"
+      - "examples/**/*.json"
+
+# MCP related changes  
+"mcp":
+  - changed-files:
+    - any-glob-to-any-file: "src/mcp.rs"
+
+# CLI changes
+"cli":
+  - changed-files:
+    - any-glob-to-any-file: 
+      - "src/cli.rs"
+      - "src/main.rs"
+
+# Tests
+"tests":
+  - changed-files:
+    - any-glob-to-any-file: 
+      - "src/**/*test*.rs"
+      - "tests/**/*.rs"
+
+# Documentation
+"documentation":
+  - changed-files:
+    - any-glob-to-any-file: 
+      - "README.md"
+      - "CLAUDE.md"
+      - "examples/README.md"
+      - "docs/**/*"
+
+# CI/CD
+"ci":
+  - changed-files:
+    - any-glob-to-any-file: 
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - ".github/labeler.yml"
+
+# Dependencies
+"dependencies":
+  - changed-files:
+    - any-glob-to-any-file: 
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+# Bug fixes
+"bug":
+  - title: 
+    - "/fix/i"
+    - "/bug/i"
+
+# Features  
+"enhancement":
+  - title:
+    - "/feat/i"
+    - "/feature/i"
+    - "/add/i"
+
+# Breaking changes
+"breaking":
+  - title:
+    - "/break/i"
+    - "/breaking/i"

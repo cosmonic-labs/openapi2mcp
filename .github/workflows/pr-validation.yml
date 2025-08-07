@@ -1,0 +1,118 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-generated-code:
+    name: Validate Generated Code
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Cache cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build the tool
+      run: cargo build --release
+    
+    - name: Generate TypeScript code from all examples
+      run: |
+        mkdir -p pr-validation/typescript
+        for example in examples/*.yaml examples/*.json; do
+          if [ -f "$example" ]; then
+            basename=$(basename "$example" | cut -d. -f1)
+            echo "Generating TypeScript for $example -> $basename"
+            ./target/release/openapi2mcp -i "$example" -o "pr-validation/typescript/$basename" -t typescript -n "$basename-server"
+          fi
+        done
+    
+    - name: Generate Rust code from all examples  
+      run: |
+        mkdir -p pr-validation/rust
+        for example in examples/*.yaml examples/*.json; do
+          if [ -f "$example" ]; then
+            basename=$(basename "$example" | cut -d. -f1)
+            echo "Generating Rust for $example -> $basename"
+            ./target/release/openapi2mcp -i "$example" -o "pr-validation/rust/$basename" -t rust -n "$basename-server"
+          fi
+        done
+    
+    - name: Validate TypeScript projects
+      run: |
+        for dir in pr-validation/typescript/*/; do
+          if [ -d "$dir" ]; then
+            echo "Validating TypeScript project: $dir"
+            cd "$dir"
+            
+            # Install dependencies
+            npm install
+            
+            # Type check
+            npx tsc --noEmit
+            
+            # Return to root
+            cd - > /dev/null
+          fi
+        done
+    
+    - name: Validate Rust projects  
+      run: |
+        for dir in pr-validation/rust/*/; do
+          if [ -d "$dir" ]; then
+            echo "Validating Rust project: $dir"
+            cd "$dir"
+            
+            # Check that the project compiles
+            cargo check
+            
+            # Return to root
+            cd - > /dev/null
+          fi
+        done
+    
+    - name: Upload generated code as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: generated-code-samples
+        path: pr-validation/
+
+  check-breaking-changes:
+    name: Check for Breaking Changes
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-semver-checks
+      run: cargo install cargo-semver-checks
+    
+    - name: Check for breaking changes
+      run: |
+        # Only run semver checks if this isn't the first version
+        if git tag --list | grep -q "v"; then
+          cargo semver-checks check-release
+        else
+          echo "No previous versions found, skipping semver check"
+        fi

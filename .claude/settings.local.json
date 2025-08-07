@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cargo init:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo run:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo:*)",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:crates.io)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(rm:*)",
+      "Bash(tokei:*)",
+      "Bash(rustc:*)",
+      "Bash(./debug_param)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}

@@ -1,0 +1,31 @@
+# Global owners - require review for all changes
+* @cosmonic-labs/maintainers
+
+# Core Rust code
+/src/ @cosmonic-labs/rust-team
+/Cargo.toml @cosmonic-labs/rust-team
+/Cargo.lock @cosmonic-labs/rust-team
+
+# OpenAPI parsing and schema handling
+/src/openapi.rs @cosmonic-labs/openapi-experts
+/examples/ @cosmonic-labs/openapi-experts
+
+# MCP generation and templates
+/src/mcp.rs @cosmonic-labs/mcp-experts
+
+# CLI interface
+/src/cli.rs @cosmonic-labs/cli-experts
+/src/main.rs @cosmonic-labs/cli-experts
+
+# Testing
+/tests/ @cosmonic-labs/testing-team
+/src/**/*test*.rs @cosmonic-labs/testing-team
+
+# CI/CD and DevOps
+/.github/ @cosmonic-labs/devops-team
+/.github/workflows/ @cosmonic-labs/devops-team
+
+# Documentation  
+/README.md @cosmonic-labs/docs-team
+/CLAUDE.md @cosmonic-labs/docs-team
+/examples/README.md @cosmonic-labs/docs-team

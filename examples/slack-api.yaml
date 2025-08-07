@@ -1,0 +1,625 @@
+openapi: "3.0.0"
+info:
+  title: "Slack Web API (Subset)"
+  version: "1.0.0"
+  description: "A subset of Slack's Web API for messaging and channel management"
+  termsOfService: "https://slack.com/terms-of-service"
+  contact:
+    name: "Slack API Support"
+    url: "https://api.slack.com/support"
+
+servers:
+  - url: "https://slack.com/api"
+    description: "Slack Web API"
+
+security:
+  - bearerAuth: []
+
+paths:
+  /conversations.list:
+    get:
+      summary: "List conversations"
+      description: "Lists all channels in a Slack team"
+      operationId: "listConversations"
+      parameters:
+        - name: "types"
+          in: "query"
+          description: "Mix and match channel types"
+          required: false
+          schema:
+            type: "string"
+            example: "public_channel,private_channel"
+        - name: "limit"
+          in: "query"
+          description: "Maximum number of items to return"
+          required: false
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: "cursor"
+          in: "query"
+          description: "Paginate through collections of data"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "List of conversations"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  ok:
+                    type: "boolean"
+                    example: true
+                  channels:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/Channel"
+                  response_metadata:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type: "string"
+
+  /conversations.create:
+    post:
+      summary: "Create conversation"
+      description: "Initiates a public or private channel-based conversation"
+      operationId: "createConversation"
+      requestBody:
+        description: "Conversation creation parameters"
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: "object"
+              required:
+                - "name"
+              properties:
+                name:
+                  type: "string"
+                  description: "Name of the public or private channel to create"
+                  example: "my-new-channel"
+                  pattern: "^[a-z0-9_-]+$"
+                  maxLength: 21
+                is_private:
+                  type: "boolean"
+                  description: "Create a private channel instead of a public one"
+                  default: false
+      responses:
+        "200":
+          description: "Conversation created successfully"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  ok:
+                    type: "boolean"
+                    example: true
+                  channel:
+                    $ref: "#/components/schemas/Channel"
+
+  /chat.postMessage:
+    post:
+      summary: "Send message"
+      description: "Sends a message to a channel"
+      operationId: "postMessage"
+      requestBody:
+        description: "Message parameters"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              required:
+                - "channel"
+                - "text"
+              properties:
+                channel:
+                  type: "string"
+                  description: "Channel, private group, or IM channel to send message to"
+                  example: "C1234567890"
+                text:
+                  type: "string"
+                  description: "Text of the message to send"
+                  example: "Hello world"
+                  maxLength: 40000
+                as_user:
+                  type: "boolean"
+                  description: "Pass true to post the message as the authed user"
+                  default: false
+                username:
+                  type: "string"
+                  description: "Set your bot's user name"
+                  maxLength: 80
+                icon_emoji:
+                  type: "string"
+                  description: "Emoji to use as the icon for this message"
+                  example: ":chart_with_upwards_trend:"
+                icon_url:
+                  type: "string"
+                  format: "uri"
+                  description: "URL to an image to use as the icon for this message"
+                attachments:
+                  type: "array"
+                  description: "A JSON-based array of structured attachments"
+                  items:
+                    $ref: "#/components/schemas/Attachment"
+                blocks:
+                  type: "array"
+                  description: "A JSON-based array of structured blocks"
+                  items:
+                    type: "object"
+                thread_ts:
+                  type: "string"
+                  description: "Provide another message's ts value to make this message a reply"
+                reply_broadcast:
+                  type: "boolean"
+                  description: "Used in conjunction with thread_ts"
+                  default: false
+      responses:
+        "200":
+          description: "Message sent successfully"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  ok:
+                    type: "boolean"
+                    example: true
+                  channel:
+                    type: "string"
+                    example: "C1234567890"
+                  ts:
+                    type: "string"
+                    example: "1405894322.002768"
+                  message:
+                    $ref: "#/components/schemas/Message"
+
+  /conversations.history:
+    get:
+      summary: "Fetch conversation history"
+      description: "Fetches a conversation's history of messages and events"
+      operationId: "getConversationHistory"
+      parameters:
+        - name: "channel"
+          in: "query"
+          description: "Conversation ID to fetch history for"
+          required: true
+          schema:
+            type: "string"
+            example: "C1234567890"
+        - name: "latest"
+          in: "query"
+          description: "End of time range of messages to include in results"
+          required: false
+          schema:
+            type: "string"
+            example: "1234567890.123456"
+        - name: "oldest"
+          in: "query"
+          description: "Start of time range of messages to include in results"
+          required: false
+          schema:
+            type: "string"
+            example: "1234567890.123456"
+        - name: "limit"
+          in: "query"
+          description: "Number of messages to return"
+          required: false
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: "cursor"
+          in: "query"
+          description: "Paginate through collections of data"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "Conversation history"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  ok:
+                    type: "boolean"
+                    example: true
+                  messages:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/Message"
+                  has_more:
+                    type: "boolean"
+                  response_metadata:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type: "string"
+
+  /users.list:
+    get:
+      summary: "List users"
+      description: "Lists all users in a Slack team"
+      operationId: "listUsers"
+      parameters:
+        - name: "limit"
+          in: "query"
+          description: "Maximum number of users to return"
+          required: false
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 1000
+            default: 0
+        - name: "cursor"
+          in: "query"
+          description: "Paginate through collections of data"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "List of users"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  ok:
+                    type: "boolean"
+                    example: true
+                  members:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/User"
+                  response_metadata:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type: "string"
+
+  /users.info:
+    get:
+      summary: "Get user info"
+      description: "Gets information about a user"
+      operationId: "getUserInfo"
+      parameters:
+        - name: "user"
+          in: "query"
+          description: "User to get info on"
+          required: true
+          schema:
+            type: "string"
+            example: "U1234567890"
+      responses:
+        "200":
+          description: "User information"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  ok:
+                    type: "boolean"
+                    example: true
+                  user:
+                    $ref: "#/components/schemas/User"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: "http"
+      scheme: "bearer"
+      description: "Slack Bot User OAuth Token"
+
+  schemas:
+    Channel:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          example: "C1234567890"
+        name:
+          type: "string"
+          example: "general"
+        is_channel:
+          type: "boolean"
+          example: true
+        is_group:
+          type: "boolean"
+          example: false
+        is_im:
+          type: "boolean"
+          example: false
+        is_mpim:
+          type: "boolean"
+          example: false
+        is_private:
+          type: "boolean"
+          example: false
+        created:
+          type: "integer"
+          example: 1449252889
+        is_archived:
+          type: "boolean"
+          example: false
+        is_general:
+          type: "boolean"
+          example: true
+        unlinked:
+          type: "integer"
+          example: 0
+        name_normalized:
+          type: "string"
+          example: "general"
+        is_shared:
+          type: "boolean"
+          example: false
+        is_ext_shared:
+          type: "boolean"
+          example: false
+        is_org_shared:
+          type: "boolean"
+          example: false
+        is_pending_ext_shared:
+          type: "boolean"
+          example: false
+        is_member:
+          type: "boolean"
+          example: true
+        topic:
+          type: "object"
+          properties:
+            value:
+              type: "string"
+              example: "Company-wide announcements and work-based matters"
+            creator:
+              type: "string"
+              example: "U061F7AUR"
+            last_set:
+              type: "integer"
+              example: 1449252889
+        purpose:
+          type: "object"
+          properties:
+            value:
+              type: "string"
+              example: "This channel is for team-wide communication and announcements."
+            creator:
+              type: "string"
+              example: "U061F7AUR"
+            last_set:
+              type: "integer"
+              example: 1449252889
+
+    Message:
+      type: "object"
+      properties:
+        type:
+          type: "string"
+          example: "message"
+        subtype:
+          type: "string"
+          example: "bot_message"
+        text:
+          type: "string"
+          example: "Hello world"
+        ts:
+          type: "string"
+          example: "1405894322.002768"
+        user:
+          type: "string"
+          example: "U061F7AUR"
+        bot_id:
+          type: "string"
+          example: "B061F7AUR"
+        username:
+          type: "string"
+          example: "bot"
+        icons:
+          type: "object"
+          properties:
+            emoji:
+              type: "string"
+              example: ":chart_with_upwards_trend:"
+        attachments:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Attachment"
+        blocks:
+          type: "array"
+          items:
+            type: "object"
+        thread_ts:
+          type: "string"
+          example: "1405894322.002768"
+        reply_count:
+          type: "integer"
+          example: 3
+        reply_users_count:
+          type: "integer"
+          example: 3
+        latest_reply:
+          type: "string"
+          example: "1405894322.002768"
+        is_locked:
+          type: "boolean"
+          example: false
+
+    User:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+          example: "U061F7AUR"
+        team_id:
+          type: "string"
+          example: "T061EG9R6"
+        name:
+          type: "string"
+          example: "bobby"
+        deleted:
+          type: "boolean"
+          example: false
+        color:
+          type: "string"
+          example: "9f69e7"
+        real_name:
+          type: "string"
+          example: "Bobby Tables"
+        tz:
+          type: "string"
+          example: "America/Los_Angeles"
+        tz_label:
+          type: "string"
+          example: "Pacific Daylight Time"
+        tz_offset:
+          type: "integer"
+          example: -25200
+        profile:
+          type: "object"
+          properties:
+            avatar_hash:
+              type: "string"
+              example: "ge3b51ca72de"
+            status_text:
+              type: "string"
+              example: "Print is dead"
+            status_emoji:
+              type: "string"
+              example: ":books:"
+            real_name:
+              type: "string"
+              example: "Egon Spengler"
+            display_name:
+              type: "string"
+              example: "spengler"
+            real_name_normalized:
+              type: "string"
+              example: "Egon Spengler"
+            display_name_normalized:
+              type: "string"
+              example: "spengler"
+            email:
+              type: "string"
+              format: "email"
+              example: "spengler@ghostbusters.example.com"
+            image_24:
+              type: "string"
+              format: "uri"
+            image_32:
+              type: "string"
+              format: "uri"
+            image_48:
+              type: "string"
+              format: "uri"
+            image_72:
+              type: "string"
+              format: "uri"
+            image_192:
+              type: "string"
+              format: "uri"
+            image_512:
+              type: "string"
+              format: "uri"
+        is_admin:
+          type: "boolean"
+          example: true
+        is_owner:
+          type: "boolean"
+          example: false
+        is_primary_owner:
+          type: "boolean"
+          example: false
+        is_restricted:
+          type: "boolean"
+          example: false
+        is_ultra_restricted:
+          type: "boolean"
+          example: false
+        is_bot:
+          type: "boolean"
+          example: false
+        updated:
+          type: "integer"
+          example: 1502138686
+        is_app_user:
+          type: "boolean"
+          example: false
+        has_2fa:
+          type: "boolean"
+          example: false
+
+    Attachment:
+      type: "object"
+      properties:
+        fallback:
+          type: "string"
+          example: "Required plain-text summary of the attachment."
+        color:
+          type: "string"
+          example: "good"
+        pretext:
+          type: "string"
+          example: "Optional text that appears above the attachment block"
+        author_name:
+          type: "string"
+          example: "Bobby Tables"
+        author_link:
+          type: "string"
+          format: "uri"
+          example: "http://flickr.com/bobby/"
+        author_icon:
+          type: "string"
+          format: "uri"
+          example: "http://flickr.com/icons/bobby.jpg"
+        title:
+          type: "string"
+          example: "Slack API Documentation"
+        title_link:
+          type: "string"
+          format: "uri"
+          example: "https://api.slack.com/"
+        text:
+          type: "string"
+          example: "Optional text that appears within the attachment"
+        fields:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              title:
+                type: "string"
+                example: "Priority"
+              value:
+                type: "string"
+                example: "High"
+              short:
+                type: "boolean"
+                example: false
+        image_url:
+          type: "string"
+          format: "uri"
+        thumb_url:
+          type: "string"
+          format: "uri"
+        footer:
+          type: "string"
+          example: "Slack API"
+        footer_icon:
+          type: "string"
+          format: "uri"
+        ts:
+          type: "integer"
+          example: 123456789
