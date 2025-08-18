@@ -38,11 +38,18 @@ cargo run -- --help
 ## Generated Output
 
 ### TypeScript
-- Complete Node.js project with package.json
-- TypeScript configuration and dependencies
+
+- Template-Based Generation of [`cosmonic-labs/mcp-server-template-ts`](https://github.com/cosmonic-labs/mcp-server-template-ts)
+- Individual Tool Files: Each OpenAPI operation generates a separate .ts file like createTask.ts, listPets.ts, etc. in `src/routes/v1/mcp/tools/`
+- Zod Schema Generation: OpenAPI schemas are converted to Zod validation schemas with:
+  - Type mapping (string, number, boolean, etc.)
+  - Optional fields handled correctly
+  - Descriptions preserved
+  - Required field validation
 - MCP server implementation using @modelcontextprotocol/sdk
 
 ### Rust  
+
 - Cargo project with dependencies
 - MCP server implementation (requires mcp-sdk crate)
 

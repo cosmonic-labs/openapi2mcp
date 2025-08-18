@@ -347,246 +347,265 @@ impl McpGenerator {
         output_dir: &Path,
         name: &str,
     ) -> crate::Result<()> {
-        fs::create_dir_all(output_dir)?;
+        // Use the GitHub template repository to clone the base structure
+        self.clone_template_repository(output_dir, name)?;
+        
+        // Update package.json with project-specific information
+        self.update_package_json(output_dir, name, server)?;
+        
+        // Generate individual tool files in src/routes/v1/mcp/tools/
+        self.generate_tool_files(server, api_client, output_dir)?;
+        
+        // Update tools index to import all generated tools
+        self.update_tools_index(server, output_dir)?;
+        
+        // Update server configuration with project details
+        self.update_server_configuration(server, output_dir, name)?;
 
-        let package_json = serde_json::json!({
-            "name": name,
-            "version": server.version,
-            "description": server.description,
-            "type": "module",
-            "main": "dist/index.js",
-            "scripts": {
-                "build": "tsc",
-                "dev": "tsx src/index.ts",
-                "start": "node dist/index.js"
-            },
-            "dependencies": {
-                "@hono/mcp": "^0.5.0"
-            },
-            "devDependencies": {
-                "@types/node": "^20.0.0",
-                "tsx": "^4.0.0",
-                "typescript": "^5.0.0"
-            }
-        });
-
-        fs::write(
-            output_dir.join("package.json"),
-            serde_json::to_string_pretty(&package_json)?,
-        )?;
-
-        let tsconfig = serde_json::json!({
-            "compilerOptions": {
-                "target": "ES2022",
-                "module": "ESNext",
-                "moduleResolution": "node",
-                "outDir": "./dist",
-                "rootDir": "./src",
-                "strict": true,
-                "esModuleInterop": true,
-                "skipLibCheck": true,
-                "forceConsistentCasingInFileNames": true
-            },
-            "include": ["src/**/*"],
-            "exclude": ["node_modules", "dist"]
-        });
-
-        fs::write(
-            output_dir.join("tsconfig.json"),
-            serde_json::to_string_pretty(&tsconfig)?,
-        )?;
-
-        let src_dir = output_dir.join("src");
-        fs::create_dir_all(&src_dir)?;
-
-        let index_ts = self.generate_typescript_index(server, api_client)?;
-        fs::write(src_dir.join("index.ts"), index_ts)?;
-
-        // Generate separate API client file
-        let client_ts = api_client.generate_typescript_client()?;
-        fs::write(src_dir.join("api-client.ts"), client_ts)?;
-
-        log::info!("Generated TypeScript MCP server files");
+        log::info!("Generated TypeScript MCP server files from template");
         Ok(())
     }
 
-    fn generate_typescript_index(&self, server: &McpServer, api_client: &ApiClient) -> crate::Result<String> {
-        let mut code = String::new();
-
-        code.push_str(&format!(
-            r#"#!/usr/bin/env node
-
-import {{ Server }} from "@modelcontextprotocol/sdk/server/index.js";
-import {{ StdioServerTransport }} from "@modelcontextprotocol/sdk/server/stdio.js";
-import {{
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-}} from "@modelcontextprotocol/sdk/types.js";
-import {{ ApiClient }} from "./api-client.js";
-
-// Initialize API client
-const apiClient = new ApiClient({{
-  // TODO: Configure base URL and other settings as needed
-  // baseUrl: process.env.API_BASE_URL || "https://api.example.com"
-}});
-
-const server = new Server(
-  {{
-    name: "{}",
-    version: "{}",
-  }},
-  {{
-    capabilities: {{
-      tools: {{}},
-    }},
-  }}
-);
-
-"#,
-            server.name, server.version
-        ));
-
-        code.push_str("server.setRequestHandler(ListToolsRequestSchema, async () => {\n");
-        code.push_str("  return {\n");
-        code.push_str("    tools: [\n");
-
-        for tool in &server.tools {
-            code.push_str(&format!(
-                r#"      {{
-        name: "{}",
-        description: "{}",
-        inputSchema: {},
-      }},
-"#,
-                tool.name,
-                tool.description,
-                serde_json::to_string_pretty(&tool.input_schema)?
-            ));
+    fn clone_template_repository(&self, output_dir: &Path, _name: &str) -> crate::Result<()> {
+        // Copy from the local template directory
+        let template_path = Path::new("/Users/bhayes/repos/cosmonic-labs/mcp-server-template-ts");
+        
+        if !template_path.exists() {
+            return Err(crate::Error::Validation(format!(
+                "Template directory not found at: {}. Please ensure the mcp-server-template-ts repository is cloned locally.",
+                template_path.display()
+            )));
         }
-
-        code.push_str("    ],\n");
-        code.push_str("  };\n");
-        code.push_str("});\n\n");
-
-        code.push_str("server.setRequestHandler(CallToolRequestSchema, async (request) => {\n");
-        code.push_str("  const { name, arguments: args } = request.params;\n\n");
-        code.push_str("  switch (name) {\n");
-
-        for (tool, endpoint) in server.tools.iter().zip(api_client.endpoints.iter()) {
-            code.push_str(&format!(
-                r#"    case "{}":
-      try {{
-        console.error(`Calling {} {} with args:`, args);
         
-        // Extract parameters based on endpoint configuration
-        const methodArgs = [];
+        self.copy_directory(template_path, output_dir)?;
         
-        {}
-        
-        const result = await apiClient.{}(...methodArgs);
-        
-        return {{
-          content: [
-            {{
-              type: "text",
-              text: `Successfully executed {}: ${{JSON.stringify(result)}}`,
-            }},
-          ],
-        }};
-      }} catch (error) {{
-        console.error(`Error executing {}:`, error);
-        return {{
-          content: [
-            {{
-              type: "text", 
-              text: `Error executing {}: ${{error.message}}`,
-            }},
-          ],
-        }};
-      }}
-"#,
-                tool.name,
-                endpoint.method,
-                endpoint.path,
-                self.generate_typescript_parameter_extraction(endpoint)?,
-                endpoint.operation_id,
-                tool.name,
-                tool.name,
-                tool.name
-            ));
+        // Remove .git directory to avoid nested git repositories
+        let git_dir = output_dir.join(".git");
+        if git_dir.exists() {
+            fs::remove_dir_all(git_dir)?;
         }
-
-        code.push_str(
-            r#"    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-});
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("MCP server running on stdio");
-}
-
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
-});
-"#,
-        );
-
-        Ok(code)
+        
+        log::info!("Copied template from {} to {}", template_path.display(), output_dir.display());
+        Ok(())
     }
-
-    fn generate_typescript_parameter_extraction(&self, endpoint: &crate::client::ApiEndpoint) -> crate::Result<String> {
-        let mut code = String::new();
+    
+    fn copy_directory(&self, src: &Path, dst: &Path) -> crate::Result<()> {
+        fs::create_dir_all(dst)?;
         
-        // Generate parameter extraction in the order expected by the API client method
-        let mut path_params = Vec::new();
-        let mut query_params = Vec::new();
-        let mut header_params = Vec::new();
-        
-        for param in &endpoint.parameters {
-            match param.location {
-                crate::client::ParameterLocation::Path => {
-                    path_params.push(&param.name);
+        for entry in fs::read_dir(src)? {
+            let entry = entry?;
+            let src_path = entry.path();
+            let dst_path = dst.join(entry.file_name());
+            
+            // Skip .git directory and node_modules
+            if let Some(name) = entry.file_name().to_str() {
+                if name == ".git" || name == "node_modules" || name == "dist" || name == "build" {
+                    continue;
                 }
-                crate::client::ParameterLocation::Query => {
-                    query_params.push(&param.name);
-                }
-                crate::client::ParameterLocation::Header => {
-                    header_params.push(&param.name);
-                }
-                _ => {} // Skip cookie parameters
             }
-        }
-
-        // Add path parameters first
-        for param_name in &path_params {
-            code.push_str(&format!("        methodArgs.push(args.{});\n", param_name));
-        }
-
-        // Add query parameters
-        for param_name in &query_params {
-            code.push_str(&format!("        methodArgs.push(args.{});\n", param_name));
-        }
-
-        // Add header parameters
-        for param_name in &header_params {
-            code.push_str(&format!("        methodArgs.push(args.{});\n", param_name));
-        }
-
-        // Add request body if present
-        if let Some(body) = &endpoint.request_body {
-            if body.required {
-                code.push_str("        methodArgs.push(args.body);\n");
+            
+            if src_path.is_dir() {
+                self.copy_directory(&src_path, &dst_path)?;
             } else {
-                code.push_str("        methodArgs.push(args.body || undefined);\n");
+                fs::copy(&src_path, &dst_path)?;
             }
         }
-
+        
+        Ok(())
+    }
+    
+    fn update_package_json(&self, output_dir: &Path, name: &str, server: &McpServer) -> crate::Result<()> {
+        let package_json_path = output_dir.join("package.json");
+        let content = fs::read_to_string(&package_json_path)?;
+        let mut package_json: serde_json::Value = serde_json::from_str(&content)?;
+        
+        // Update project-specific fields
+        package_json["name"] = serde_json::Value::String(name.to_string());
+        package_json["version"] = serde_json::Value::String(server.version.clone());
+        package_json["description"] = serde_json::Value::String(server.description.clone());
+        
+        fs::write(
+            package_json_path,
+            serde_json::to_string_pretty(&package_json)?
+        )?;
+        
+        log::info!("Updated package.json with project information");
+        Ok(())
+    }
+    
+    fn generate_tool_files(&self, server: &McpServer, api_client: &ApiClient, output_dir: &Path) -> crate::Result<()> {
+        let tools_dir = output_dir.join("src/routes/v1/mcp/tools");
+        
+        // Remove existing tool files except index.ts
+        if tools_dir.exists() {
+            for entry in fs::read_dir(&tools_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_file() && path.file_name().unwrap() != "index.ts" {
+                    fs::remove_file(path)?;
+                }
+            }
+        }
+        
+        // Generate individual tool files
+        for (tool, endpoint) in server.tools.iter().zip(api_client.endpoints.iter()) {
+            let tool_filename = format!("{}.ts", tool.name.replace('-', "_"));
+            let tool_path = tools_dir.join(tool_filename);
+            
+            let tool_content = self.generate_individual_tool_file(tool, endpoint)?;
+            fs::write(tool_path, tool_content)?;
+            
+            log::debug!("Generated tool file for: {}", tool.name);
+        }
+        
+        log::info!("Generated {} individual tool files", server.tools.len());
+        Ok(())
+    }
+    
+    fn generate_individual_tool_file(&self, tool: &McpTool, endpoint: &crate::client::ApiEndpoint) -> crate::Result<String> {
+        let mut code = String::new();
+        
+        // Import statements
+        code.push_str("import z from \"zod\";\n\n");
+        code.push_str("import { McpServer as UpstreamMCPServer } from \"@modelcontextprotocol/sdk/server/mcp.js\";\n");
+        code.push_str("import { CallToolResult } from \"@modelcontextprotocol/sdk/types.js\";\n\n");
+        
+        // Generate Zod schema from tool input schema
+        let zod_schema = self.generate_zod_schema_from_tool(&tool)?;
+        
+        // Generate setupTool function
+        code.push_str("export function setupTool<S extends UpstreamMCPServer>(server: S) {\n");
+        code.push_str(&format!("  server.tool(\n"));
+        code.push_str(&format!("    \"{}\",\n", tool.name));
+        code.push_str(&format!("    \"{}\",\n", tool.description));
+        code.push_str(&format!("    {},\n", zod_schema));
+        code.push_str("    async (args): Promise<CallToolResult> => {\n");
+        
+        // Generate API call logic
+        code.push_str("      try {\n");
+        code.push_str(&format!("        console.error(`Calling {} {} with args:`, args);\n", endpoint.method, endpoint.path));
+        code.push_str("\n");
+        code.push_str("        // TODO: Implement actual API client call\n");
+        code.push_str(&format!("        // const result = await apiClient.{}(args);\n", endpoint.operation_id));
+        code.push_str("        const result = { success: true, message: \"API call would be made here\" };\n");
+        code.push_str("\n");
+        code.push_str("        return {\n");
+        code.push_str("          content: [\n");
+        code.push_str("            {\n");
+        code.push_str("              type: \"text\",\n");
+        code.push_str(&format!("              text: `Successfully executed {}: ${{JSON.stringify(result)}}`,\n", tool.name));
+        code.push_str("            },\n");
+        code.push_str("          ],\n");
+        code.push_str("        };\n");
+        code.push_str("      } catch (error) {\n");
+        code.push_str(&format!("        console.error(`Error executing {}:`, error);\n", tool.name));
+        code.push_str("        return {\n");
+        code.push_str("          content: [\n");
+        code.push_str("            {\n");
+        code.push_str("              type: \"text\",\n");
+        code.push_str(&format!("              text: `Error executing {}: ${{error instanceof Error ? error.message : String(error)}}`,\n", tool.name));
+        code.push_str("            },\n");
+        code.push_str("          ],\n");
+        code.push_str("        };\n");
+        code.push_str("      }\n");
+        code.push_str("    },\n");
+        code.push_str("  );\n");
+        code.push_str("}\n");
+        
         Ok(code)
     }
+    
+    fn generate_zod_schema_from_tool(&self, tool: &McpTool) -> crate::Result<String> {
+        let schema = &tool.input_schema;
+        
+        if let Some(properties) = schema.get("properties").and_then(|p| p.as_object()) {
+            if properties.is_empty() {
+                return Ok("{}".to_string());
+            }
+            
+            let mut zod_fields = Vec::new();
+            let required_fields: Vec<&str> = schema.get("required")
+                .and_then(|r| r.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+                .unwrap_or_default();
+            
+            for (prop_name, prop_schema) in properties {
+                let mut zod_type = match prop_schema.get("type").and_then(|t| t.as_str()) {
+                    Some("string") => "z.string()",
+                    Some("number") => "z.number()",
+                    Some("integer") => "z.number().int()",
+                    Some("boolean") => "z.boolean()",
+                    Some("array") => "z.array(z.any())",
+                    Some("object") => "z.object({})",
+                    _ => "z.any()",
+                }.to_string();
+                
+                // Add description if present
+                if let Some(description) = prop_schema.get("description").and_then(|d| d.as_str()) {
+                    zod_type = format!("{}.describe(\"{}\")", zod_type, description.replace('"', "\\\""));
+                }
+                
+                // Make optional if not required
+                if !required_fields.contains(&prop_name.as_str()) {
+                    zod_type = format!("{}.optional()", zod_type);
+                }
+                
+                zod_fields.push(format!("      {}: {}", prop_name, zod_type));
+            }
+            
+            Ok(format!("{{\n{}\n    }}", zod_fields.join(",\n")))
+        } else {
+            Ok("{}".to_string())
+        }
+    }
+    
+    fn update_tools_index(&self, server: &McpServer, output_dir: &Path) -> crate::Result<()> {
+        let tools_index_path = output_dir.join("src/routes/v1/mcp/tools/index.ts");
+        
+        let mut code = String::new();
+        code.push_str("import { McpServer as UpstreamMCPServer } from \"@modelcontextprotocol/sdk/server/mcp.js\";\n\n");
+        
+        // Import all generated tools
+        for tool in &server.tools {
+            let tool_module_name = tool.name.replace('-', "_");
+            code.push_str(&format!(
+                "import * as {} from \"./{}.js\";\n", 
+                tool_module_name,
+                tool_module_name
+            ));
+        }
+        
+        code.push_str("\nexport function setupAllTools<S extends UpstreamMCPServer>(server: S) {\n");
+        
+        // Call setupTool for each tool
+        for tool in &server.tools {
+            let tool_module_name = tool.name.replace('-', "_");
+            code.push_str(&format!("  {}.setupTool(server);\n", tool_module_name));
+        }
+        
+        code.push_str("}\n");
+        
+        fs::write(tools_index_path, code)?;
+        
+        log::info!("Updated tools index with {} tools", server.tools.len());
+        Ok(())
+    }
+    
+    fn update_server_configuration(&self, server: &McpServer, output_dir: &Path, name: &str) -> crate::Result<()> {
+        let server_path = output_dir.join("src/routes/v1/mcp/server.ts");
+        let content = fs::read_to_string(&server_path)?;
+        
+        // Replace the server name and version in the server.ts file
+        let updated_content = content
+            .replace("\"example-server\"", &format!("\"{}\"", name))
+            .replace("\"1.0.0\"", &format!("\"{}\"", server.version));
+        
+        fs::write(server_path, updated_content)?;
+        
+        log::info!("Updated server configuration with project details");
+        Ok(())
+    }
+
 
     fn generate_rust(
         &self,
