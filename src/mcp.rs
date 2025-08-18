@@ -368,7 +368,7 @@ impl McpGenerator {
 
     fn clone_template_repository(&self, output_dir: &Path, _name: &str) -> crate::Result<()> {
         // Copy from the local template directory
-        let template_path = Path::new("/Users/bhayes/repos/cosmonic-labs/mcp-server-template-ts");
+        let template_path = Path::new("../mcp-server-template-ts");
         
         if !template_path.exists() {
             return Err(crate::Error::Validation(format!(
