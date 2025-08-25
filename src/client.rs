@@ -59,7 +59,7 @@ impl ApiClient {
             spec,
             endpoints: Vec::new(),
         };
-        
+
         client.extract_endpoints()?;
         log::info!("Extracted {} API endpoints", client.endpoints.len());
         Ok(client)
@@ -79,19 +79,24 @@ impl ApiClient {
             };
 
             if let Some(operation) = &path_item.get {
-                self.endpoints.push(self.create_endpoint("GET", path, operation, &base_url)?);
+                self.endpoints
+                    .push(self.create_endpoint("GET", path, operation, &base_url)?);
             }
             if let Some(operation) = &path_item.post {
-                self.endpoints.push(self.create_endpoint("POST", path, operation, &base_url)?);
+                self.endpoints
+                    .push(self.create_endpoint("POST", path, operation, &base_url)?);
             }
             if let Some(operation) = &path_item.put {
-                self.endpoints.push(self.create_endpoint("PUT", path, operation, &base_url)?);
+                self.endpoints
+                    .push(self.create_endpoint("PUT", path, operation, &base_url)?);
             }
             if let Some(operation) = &path_item.delete {
-                self.endpoints.push(self.create_endpoint("DELETE", path, operation, &base_url)?);
+                self.endpoints
+                    .push(self.create_endpoint("DELETE", path, operation, &base_url)?);
             }
             if let Some(operation) = &path_item.patch {
-                self.endpoints.push(self.create_endpoint("PATCH", path, operation, &base_url)?);
+                self.endpoints
+                    .push(self.create_endpoint("PATCH", path, operation, &base_url)?);
             }
         }
 
@@ -99,9 +104,11 @@ impl ApiClient {
     }
 
     fn extract_base_url(&self) -> Option<String> {
-        self.spec.inner.servers.first().and_then(|server| {
-            Some(server.url.clone())
-        })
+        self.spec
+            .inner
+            .servers
+            .first()
+            .and_then(|server| Some(server.url.clone()))
     }
 
     fn create_endpoint(
@@ -111,11 +118,17 @@ impl ApiClient {
         operation: &Operation,
         base_url: &Option<String>,
     ) -> crate::Result<ApiEndpoint> {
-        let operation_id = operation.operation_id.clone()
-            .unwrap_or_else(|| format!("{}_{}", method.to_lowercase(), 
-                path.replace('/', "_").replace('{', "").replace('}', "")));
+        let operation_id = operation.operation_id.clone().unwrap_or_else(|| {
+            format!(
+                "{}_{}",
+                method.to_lowercase(),
+                path.replace('/', "_").replace('{', "").replace('}', "")
+            )
+        });
 
-        let description = operation.summary.clone()
+        let description = operation
+            .summary
+            .clone()
             .or_else(|| operation.description.clone())
             .unwrap_or_else(|| format!("{} {}", method, path));
 
@@ -135,7 +148,10 @@ impl ApiClient {
         })
     }
 
-    fn extract_parameters(&self, params: &[ReferenceOr<openapiv3::Parameter>]) -> crate::Result<Vec<ApiParameter>> {
+    fn extract_parameters(
+        &self,
+        params: &[ReferenceOr<openapiv3::Parameter>],
+    ) -> crate::Result<Vec<ApiParameter>> {
         let mut parameters = Vec::new();
 
         for param_ref in params {
@@ -197,7 +213,10 @@ impl ApiClient {
         Ok("string".to_string())
     }
 
-    fn extract_request_body(&self, request_body_ref: &Option<ReferenceOr<openapiv3::RequestBody>>) -> crate::Result<Option<ApiRequestBody>> {
+    fn extract_request_body(
+        &self,
+        request_body_ref: &Option<ReferenceOr<openapiv3::RequestBody>>,
+    ) -> crate::Result<Option<ApiRequestBody>> {
         let request_body_ref = match request_body_ref {
             Some(rb) => rb,
             None => return Ok(None),
@@ -212,7 +231,7 @@ impl ApiClient {
         };
 
         let content_types: Vec<String> = request_body.content.keys().cloned().collect();
-        
+
         // Get the first content type's schema for simplification
         let schema_type = if let Some((_, media_type)) = request_body.content.iter().next() {
             if media_type.schema.is_some() {
@@ -231,7 +250,10 @@ impl ApiClient {
         }))
     }
 
-    fn extract_responses(&self, responses: &openapiv3::Responses) -> crate::Result<HashMap<String, ApiResponse>> {
+    fn extract_responses(
+        &self,
+        responses: &openapiv3::Responses,
+    ) -> crate::Result<HashMap<String, ApiResponse>> {
         let mut response_map = HashMap::new();
 
         // Handle default response
@@ -249,7 +271,11 @@ impl ApiClient {
         Ok(response_map)
     }
 
-    fn extract_single_response(&self, status_code: &str, response_ref: &ReferenceOr<openapiv3::Response>) -> crate::Result<ApiResponse> {
+    fn extract_single_response(
+        &self,
+        status_code: &str,
+        response_ref: &ReferenceOr<openapiv3::Response>,
+    ) -> crate::Result<ApiResponse> {
         let response = match response_ref {
             ReferenceOr::Item(resp) => resp,
             ReferenceOr::Reference { reference } => {
@@ -264,7 +290,7 @@ impl ApiClient {
         };
 
         let content_types: Vec<String> = response.content.keys().cloned().collect();
-        
+
         let schema_type = if let Some((_, media_type)) = response.content.iter().next() {
             if media_type.schema.is_some() {
                 Some("object".to_string()) // Simplified
@@ -364,7 +390,10 @@ export class ApiClient {{
 
 "#,
             self.spec.info().title,
-            self.endpoints.first().and_then(|e| e.base_url.as_ref()).unwrap_or(&"https://api.example.com".to_string())
+            self.endpoints
+                .first()
+                .and_then(|e| e.base_url.as_ref())
+                .unwrap_or(&"https://api.example.com".to_string())
         ));
 
         // Generate methods for each endpoint
@@ -381,7 +410,7 @@ export class ApiClient {{
     fn generate_typescript_method(&self, endpoint: &ApiEndpoint) -> crate::Result<String> {
         let mut code = String::new();
         let method_name = &endpoint.operation_id;
-        
+
         // Build parameter list
         let mut param_parts = Vec::new();
         let mut path_params = Vec::new();
@@ -391,22 +420,42 @@ export class ApiClient {{
         for param in &endpoint.parameters {
             match param.location {
                 ParameterLocation::Path => {
-                    param_parts.push(format!("{}: {}", param.name, self.ts_type(&param.schema_type)));
+                    param_parts.push(format!(
+                        "{}: {}",
+                        param.name,
+                        self.ts_type(&param.schema_type)
+                    ));
                     path_params.push(param.name.clone());
                 }
                 ParameterLocation::Query => {
                     if param.required {
-                        param_parts.push(format!("{}: {}", param.name, self.ts_type(&param.schema_type)));
+                        param_parts.push(format!(
+                            "{}: {}",
+                            param.name,
+                            self.ts_type(&param.schema_type)
+                        ));
                     } else {
-                        param_parts.push(format!("{}?: {}", param.name, self.ts_type(&param.schema_type)));
+                        param_parts.push(format!(
+                            "{}?: {}",
+                            param.name,
+                            self.ts_type(&param.schema_type)
+                        ));
                     }
                     query_params.push(param.name.clone());
                 }
                 ParameterLocation::Header => {
                     if param.required {
-                        param_parts.push(format!("{}: {}", param.name, self.ts_type(&param.schema_type)));
+                        param_parts.push(format!(
+                            "{}: {}",
+                            param.name,
+                            self.ts_type(&param.schema_type)
+                        ));
                     } else {
-                        param_parts.push(format!("{}?: {}", param.name, self.ts_type(&param.schema_type)));
+                        param_parts.push(format!(
+                            "{}?: {}",
+                            param.name,
+                            self.ts_type(&param.schema_type)
+                        ));
                     }
                     header_params.push(param.name.clone());
                 }
@@ -431,7 +480,9 @@ export class ApiClient {{
         };
 
         // Determine return type
-        let return_type = if let Some(response) = endpoint.responses.get("200")
+        let return_type = if let Some(response) = endpoint
+            .responses
+            .get("200")
             .or_else(|| endpoint.responses.get("201"))
             .or_else(|| endpoint.responses.get("default"))
         {
@@ -450,23 +501,26 @@ export class ApiClient {{
    */
   async {}({}): Promise<{}> {{
 "#,
-            endpoint.description,
-            method_name,
-            params_str,
-            return_type
+            endpoint.description, method_name, params_str, return_type
         ));
 
         // Build path with substitutions
         let mut api_path = endpoint.path.clone();
         for path_param in &path_params {
-            api_path = api_path.replace(&format!("{{{}}}", path_param), &format!("${{{}}}", path_param));
+            api_path = api_path.replace(
+                &format!("{{{}}}", path_param),
+                &format!("${{{}}}", path_param),
+            );
         }
 
         // Build query parameters object
         if !query_params.is_empty() {
             code.push_str("    const params: Record<string, any> = {};\n");
             for param in &query_params {
-                code.push_str(&format!("    if ({} !== undefined) params['{}'] = {};\n", param, param, param));
+                code.push_str(&format!(
+                    "    if ({} !== undefined) params['{}'] = {};\n",
+                    param, param, param
+                ));
             }
         }
 
@@ -474,16 +528,17 @@ export class ApiClient {{
         if !header_params.is_empty() {
             code.push_str("    const headers: Record<string, string> = {};\n");
             for param in &header_params {
-                code.push_str(&format!("    if ({} !== undefined) headers['{}'] = String({});\n", param, param, param));
+                code.push_str(&format!(
+                    "    if ({} !== undefined) headers['{}'] = String({});\n",
+                    param, param, param
+                ));
             }
         }
 
         // Make the request
         code.push_str(&format!(
             "    return this.makeRequest<{}>('{}', `{}`, {{\n",
-            return_type,
-            endpoint.method,
-            api_path
+            return_type, endpoint.method, api_path
         ));
 
         if !query_params.is_empty() {
@@ -621,7 +676,10 @@ impl ApiClient {{
 
 "#,
             self.spec.info().title,
-            self.endpoints.first().and_then(|e| e.base_url.as_ref()).unwrap_or(&"https://api.example.com".to_string())
+            self.endpoints
+                .first()
+                .and_then(|e| e.base_url.as_ref())
+                .unwrap_or(&"https://api.example.com".to_string())
         ));
 
         // Generate methods for each endpoint
@@ -638,7 +696,7 @@ impl ApiClient {{
     fn generate_rust_method(&self, endpoint: &ApiEndpoint) -> crate::Result<String> {
         let mut code = String::new();
         let method_name = &endpoint.operation_id;
-        
+
         // Build parameter list
         let mut param_parts = Vec::new();
         let mut path_params = Vec::new();
@@ -692,16 +750,17 @@ impl ApiClient {{
             r#"    /// {}
     pub async fn {}({}) -> Result<serde_json::Value> {{
 "#,
-            endpoint.description,
-            method_name,
-            params_str
+            endpoint.description, method_name, params_str
         ));
 
         // Build path with substitutions
         let mut api_path = endpoint.path.clone();
         for path_param in &path_params {
             // Replace {param} with ${param} for string interpolation
-            api_path = api_path.replace(&format!("{{{}}}", path_param), &format!("${{{}}}", path_param));
+            api_path = api_path.replace(
+                &format!("{{{}}}", path_param),
+                &format!("${{{}}}", path_param),
+            );
         }
 
         // Build query parameters
@@ -731,9 +790,14 @@ impl ApiClient {{
             // Use simple path formatting without named parameters to avoid redundant argument issue
             let mut path_with_subs = endpoint.path.clone();
             for (i, path_param) in path_params.iter().enumerate() {
-                path_with_subs = path_with_subs.replace(&format!("{{{}}}", path_param), &format!("{{{}}}", i));
+                path_with_subs =
+                    path_with_subs.replace(&format!("{{{}}}", path_param), &format!("{{{}}}", i));
             }
-            format!("&format!(\"{}\", {})", path_with_subs, path_params.join(", "))
+            format!(
+                "&format!(\"{}\", {})",
+                path_with_subs,
+                path_params.join(", ")
+            )
         } else {
             format!("\"{}\"", endpoint.path)
         };
@@ -792,7 +856,7 @@ impl ApiClient {{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::openapi::parse_openapi_spec;
+    use crate::openapi::parse_openapi_spec_from_path;
     use std::path::Path;
 
     #[test]
@@ -800,10 +864,10 @@ mod tests {
         // Use one of the example specs for testing
         let spec_path = Path::new("examples/simple-api.json");
         if spec_path.exists() {
-            let spec = parse_openapi_spec(spec_path).unwrap();
+            let spec = parse_openapi_spec_from_path(spec_path).unwrap();
             let client = ApiClient::new(spec);
             assert!(client.is_ok());
-            
+
             let client = client.unwrap();
             assert!(!client.endpoints.is_empty());
         }
@@ -814,11 +878,11 @@ mod tests {
         // Use one of the example specs for testing
         let spec_path = Path::new("examples/simple-api.json");
         if spec_path.exists() {
-            let spec = parse_openapi_spec(spec_path).unwrap();
+            let spec = parse_openapi_spec_from_path(spec_path).unwrap();
             let client = ApiClient::new(spec).unwrap();
             let ts_code = client.generate_typescript_client();
             assert!(ts_code.is_ok());
-            
+
             let code = ts_code.unwrap();
             assert!(code.contains("export class ApiClient"));
             assert!(code.contains("makeRequest"));
@@ -830,11 +894,11 @@ mod tests {
         // Use one of the example specs for testing
         let spec_path = Path::new("examples/simple-api.json");
         if spec_path.exists() {
-            let spec = parse_openapi_spec(spec_path).unwrap();
+            let spec = parse_openapi_spec_from_path(spec_path).unwrap();
             let client = ApiClient::new(spec).unwrap();
             let rust_code = client.generate_rust_client();
             assert!(rust_code.is_ok());
-            
+
             let code = rust_code.unwrap();
             assert!(code.contains("pub struct ApiClient"));
             assert!(code.contains("make_request"));

@@ -1,19 +1,11 @@
-use openapiv3::{OpenAPI, ReferenceOr, SchemaKind, Type, SchemaData};
+use openapiv3::{OpenAPI, ReferenceOr, SchemaData, SchemaKind, Type};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::collections::HashMap;
 
 // Re-export openapiv3 types for easier access
 pub use openapiv3::{
-    Info, 
-    PathItem, 
-    Operation,
-    Parameter,
-    Schema,
-    RequestBody, 
-    Response, 
-    MediaType, 
-    Components
+    Components, Info, MediaType, Operation, Parameter, PathItem, RequestBody, Response, Schema,
 };
 
 // Wrapper type to add our custom methods
@@ -26,26 +18,26 @@ impl OpenApiSpec {
     pub fn new(inner: OpenAPI) -> Self {
         Self { inner }
     }
-    
+
     // Delegate common field access
     pub fn openapi(&self) -> &str {
         &self.inner.openapi
     }
-    
+
     pub fn info(&self) -> &openapiv3::Info {
         &self.inner.info
     }
-    
+
     pub fn paths(&self) -> &openapiv3::Paths {
         &self.inner.paths
     }
-    
+
     pub fn components(&self) -> &Option<openapiv3::Components> {
         &self.inner.components
     }
 }
 
-pub fn parse_openapi_spec<P: AsRef<Path>>(path: P) -> crate::Result<OpenApiSpec> {
+pub fn parse_openapi_spec_from_path<P: AsRef<Path>>(path: P) -> crate::Result<OpenApiSpec> {
     let content = fs::read_to_string(&path)?;
 
     let inner: OpenAPI = if path.as_ref().extension().and_then(|s| s.to_str()) == Some("json") {
@@ -61,10 +53,24 @@ pub fn parse_openapi_spec<P: AsRef<Path>>(path: P) -> crate::Result<OpenApiSpec>
     Ok(spec)
 }
 
+pub fn parse_openapi_spec(spec: impl AsRef<str>) -> crate::Result<OpenApiSpec> {
+    let content = spec.as_ref();
+    // TODO: Should be ok without parsing json right? could fallback
+    let inner: OpenAPI = serde_yaml::from_str(content)
+        .map_err(|e| crate::Error::Parse(format!("Failed to parse YAML: {}", e)))?;
+
+    let spec = OpenApiSpec::new(inner);
+    validate_spec(&spec)?;
+    Ok(spec)
+}
+
 impl OpenApiSpec {
     /// Resolve a ReferenceOr to get a simple schema representation for MCP generation
     /// This is a simplified version for Phase 1 - will be enhanced in future phases
-    pub fn resolve_schema_simple(&self, _schema_ref: &ReferenceOr<Schema>) -> crate::Result<ResolvedSchema> {
+    pub fn resolve_schema_simple(
+        &self,
+        _schema_ref: &ReferenceOr<Schema>,
+    ) -> crate::Result<ResolvedSchema> {
         // For Phase 1, return a simple placeholder schema
         // TODO: Implement proper reference resolution in future phases
         Ok(ResolvedSchema::Simple {
@@ -75,7 +81,10 @@ impl OpenApiSpec {
     }
 
     /// Convert openapiv3 schema to a resolved schema for MCP generation
-    pub fn resolve_schema(&self, schema_ref: &ReferenceOr<Schema>) -> crate::Result<ResolvedSchema> {
+    pub fn resolve_schema(
+        &self,
+        schema_ref: &ReferenceOr<Schema>,
+    ) -> crate::Result<ResolvedSchema> {
         // For Phase 1, use simplified resolution - will be enhanced in future phases
         match schema_ref {
             ReferenceOr::Item(schema) => self.resolve_schema_direct(schema),
@@ -92,7 +101,6 @@ impl OpenApiSpec {
 
     /// Resolve a direct schema (not a reference) to ResolvedSchema
     fn resolve_schema_direct(&self, schema: &Schema) -> crate::Result<ResolvedSchema> {
-        
         match &schema.schema_kind {
             SchemaKind::Type(Type::String(_string_type)) => {
                 Ok(ResolvedSchema::Simple {
@@ -115,13 +123,11 @@ impl OpenApiSpec {
                     additional_properties: self.extract_additional_properties(&schema.schema_data),
                 })
             }
-            SchemaKind::Type(Type::Boolean(_)) => {
-                Ok(ResolvedSchema::Simple {
-                    schema_type: "boolean".to_string(),
-                    format: None,
-                    additional_properties: self.extract_additional_properties(&schema.schema_data),
-                })
-            }
+            SchemaKind::Type(Type::Boolean(_)) => Ok(ResolvedSchema::Simple {
+                schema_type: "boolean".to_string(),
+                format: None,
+                additional_properties: self.extract_additional_properties(&schema.schema_data),
+            }),
             SchemaKind::Type(Type::Array(_array_type)) => {
                 // TODO: Properly handle array items in future phases
                 Ok(ResolvedSchema::Array {
@@ -180,10 +186,15 @@ impl OpenApiSpec {
                 // For now, merge all schemas into one object - could be enhanced later
                 let mut merged_properties = HashMap::new();
                 let mut merged_required = Vec::new();
-                
+
                 for schema_ref in all_of {
                     let resolved = self.resolve_schema(schema_ref)?;
-                    if let ResolvedSchema::Object { properties, required, .. } = resolved {
+                    if let ResolvedSchema::Object {
+                        properties,
+                        required,
+                        ..
+                    } = resolved
+                    {
                         if let Some(props) = properties {
                             merged_properties.extend(props);
                         }
@@ -192,11 +203,19 @@ impl OpenApiSpec {
                         }
                     }
                 }
-                
+
                 Ok(ResolvedSchema::Object {
                     schema_type: Some("object".to_string()),
-                    properties: if merged_properties.is_empty() { None } else { Some(merged_properties) },
-                    required: if merged_required.is_empty() { None } else { Some(merged_required) },
+                    properties: if merged_properties.is_empty() {
+                        None
+                    } else {
+                        Some(merged_properties)
+                    },
+                    required: if merged_required.is_empty() {
+                        None
+                    } else {
+                        Some(merged_required)
+                    },
                     additional_properties: self.extract_additional_properties(&schema.schema_data),
                 })
             }
@@ -232,14 +251,23 @@ impl OpenApiSpec {
     }
 
     /// Extract additional properties from SchemaData for backward compatibility
-    fn extract_additional_properties(&self, schema_data: &SchemaData) -> HashMap<String, serde_json::Value> {
+    fn extract_additional_properties(
+        &self,
+        schema_data: &SchemaData,
+    ) -> HashMap<String, serde_json::Value> {
         let mut additional = HashMap::new();
-        
+
         if let Some(title) = &schema_data.title {
-            additional.insert("title".to_string(), serde_json::Value::String(title.clone()));
+            additional.insert(
+                "title".to_string(),
+                serde_json::Value::String(title.clone()),
+            );
         }
         if let Some(description) = &schema_data.description {
-            additional.insert("description".to_string(), serde_json::Value::String(description.clone()));
+            additional.insert(
+                "description".to_string(),
+                serde_json::Value::String(description.clone()),
+            );
         }
         if let Some(default) = &schema_data.default {
             additional.insert("default".to_string(), default.clone());
@@ -247,7 +275,7 @@ impl OpenApiSpec {
         if let Some(example) = &schema_data.example {
             additional.insert("example".to_string(), example.clone());
         }
-        
+
         additional
     }
 }
@@ -296,9 +324,10 @@ fn validate_spec(spec: &OpenApiSpec) -> crate::Result<()> {
     // Validate that all references can be resolved
     for (_, path_item_ref) in &spec.paths().paths {
         if let ReferenceOr::Reference { reference } = path_item_ref {
-            return Err(crate::Error::Validation(
-                format!("Path item references are not supported: {}", reference)
-            ));
+            return Err(crate::Error::Validation(format!(
+                "Path item references are not supported: {}",
+                reference
+            )));
         }
     }
 
@@ -308,8 +337,8 @@ fn validate_spec(spec: &OpenApiSpec) -> crate::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     fn create_test_spec_from_json() -> OpenApiSpec {
         let spec_json = r#"{
@@ -464,7 +493,7 @@ paths:
         let mut temp_file = NamedTempFile::new().unwrap();
         write!(temp_file, "{}", spec_yaml).unwrap();
 
-        let result = parse_openapi_spec(temp_file.path());
+        let result = parse_openapi_spec_from_path(temp_file.path());
         assert!(result.is_ok());
 
         let spec = result.unwrap();
@@ -502,7 +531,7 @@ paths:
         let mut temp_file = NamedTempFile::with_suffix(".json").unwrap();
         write!(temp_file, "{}", spec_json).unwrap();
 
-        let result = parse_openapi_spec(temp_file.path());
+        let result = parse_openapi_spec_from_path(temp_file.path());
         assert!(result.is_ok());
 
         let spec = result.unwrap();
@@ -510,14 +539,14 @@ paths:
         assert_eq!(spec.info().title, "Test API");
     }
 
-    #[test] 
+    #[test]
     fn test_parse_invalid_spec() {
         let invalid_yaml = "invalid: yaml: content:";
-        
+
         let mut temp_file = NamedTempFile::new().unwrap();
         write!(temp_file, "{}", invalid_yaml).unwrap();
 
-        let result = parse_openapi_spec(temp_file.path());
+        let result = parse_openapi_spec_from_path(temp_file.path());
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), crate::Error::Parse(_)));
     }
@@ -555,13 +584,13 @@ paths:
     #[test]
     fn test_resolve_schema_simple() {
         let spec = create_test_spec_from_json();
-        
+
         // Test that we can create a simple resolved schema (placeholder for Phase 1)
         let result = spec.resolve_schema_simple(&openapiv3::ReferenceOr::Item(openapiv3::Schema {
             schema_data: Default::default(),
             schema_kind: openapiv3::SchemaKind::Type(openapiv3::Type::String(Default::default())),
         }));
-        
+
         assert!(result.is_ok());
         match result.unwrap() {
             ResolvedSchema::Simple { schema_type, .. } => {
@@ -574,15 +603,15 @@ paths:
     #[test]
     fn test_resolve_schema_reference_placeholder() {
         let spec = create_test_spec_with_components();
-        
+
         // Test that reference resolution returns placeholder for Phase 1
-        let reference = openapiv3::ReferenceOr::Reference { 
-            reference: "#/components/schemas/User".to_string() 
+        let reference = openapiv3::ReferenceOr::Reference {
+            reference: "#/components/schemas/User".to_string(),
         };
-        
+
         let result = spec.resolve_schema(&reference);
         assert!(result.is_ok());
-        
+
         // In Phase 1, references resolve to simple placeholders
         match result.unwrap() {
             ResolvedSchema::Simple { schema_type, .. } => {
