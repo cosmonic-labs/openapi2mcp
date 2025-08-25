@@ -30,22 +30,30 @@ fn main() -> Result<()> {
     );
 
     let backend = native::NativeFileBackend;
-    
+
     // For TypeScript, prepare the template first
     let template_dir = if matches!(config.language, cli::Target::TypeScript) {
-        let template_path = "./mcp-server-template-ts";
-        native::prepare_typescript_template(template_path)?;
+        let template_path = config
+            .template_dir
+            .as_ref()
+            .map(|p| p.to_str().unwrap())
+            .unwrap_or("./mcp-server-template-ts");
+
+        // Only clone if template directory doesn't exist
+        if !std::path::Path::new(template_path).exists() {
+            native::prepare_typescript_template(template_path)?;
+        }
         template_path
     } else {
         "unused-for-rust" // Rust doesn't need templates
     };
-    
+
     let generator = mcp::McpGenerator::new(spec, config.language);
     generator.generate(
         &backend,
         template_dir,
         config.output_dir.to_str().unwrap(),
-        config.server_name.as_deref()
+        config.server_name.as_deref(),
     )?;
 
     log::info!("MCP server generated successfully!");

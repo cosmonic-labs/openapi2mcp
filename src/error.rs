@@ -65,17 +65,26 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let io_error = Error::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "file not found"));
+        let io_error = Error::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
         assert!(io_error.to_string().contains("IO error"));
 
         let parse_error = Error::Parse("invalid syntax".to_string());
         assert_eq!(parse_error.to_string(), "Parse error: invalid syntax");
 
         let validation_error = Error::Validation("missing field".to_string());
-        assert_eq!(validation_error.to_string(), "Validation error: missing field");
+        assert_eq!(
+            validation_error.to_string(),
+            "Validation error: missing field"
+        );
 
         let generation_error = Error::Generation("template error".to_string());
-        assert_eq!(generation_error.to_string(), "Generation error: template error");
+        assert_eq!(
+            generation_error.to_string(),
+            "Generation error: template error"
+        );
     }
 
     #[test]
