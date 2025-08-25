@@ -576,7 +576,7 @@ paths:
 
     #[test]
     fn test_nonexistent_file() {
-        let result = parse_openapi_spec("/nonexistent/file.yaml");
+        let result = parse_openapi_spec_from_path("/nonexistent/file.yaml");
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), crate::Error::Io(_)));
     }

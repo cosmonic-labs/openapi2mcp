@@ -5,19 +5,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
-      time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "cosmonic-labs/maintainers"
-    assignees:
-      - "cosmonic-labs/maintainers"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
     labels:
       - "dependencies"
       - "rust"
+    groups:
+      all-deps:
+        patterns:
+          - "*"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -27,10 +22,10 @@ updates:
       day: "monday"  
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "cosmonic-labs/maintainers"
-    assignees:
-      - "cosmonic-labs/maintainers"
+    groups:
+      all-deps:
+        patterns:
+          - "*"
     commit-message:
       prefix: "ci"
       include: "scope"

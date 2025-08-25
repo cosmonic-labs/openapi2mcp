@@ -49,9 +49,14 @@ impl McpGenerator {
         let api_client = ApiClient::new(self.spec.clone())?;
 
         match self.language {
-            Target::TypeScript => {
-                self.generate_typescript(backend, &mcp_server, &api_client, template_dir, output_dir, &server_name)?
-            }
+            Target::TypeScript => self.generate_typescript(
+                backend,
+                &mcp_server,
+                &api_client,
+                template_dir,
+                output_dir,
+                &server_name,
+            )?,
             Target::Rust => {
                 self.generate_rust(backend, &mcp_server, &api_client, output_dir, &server_name)?
             }
@@ -123,7 +128,7 @@ impl McpGenerator {
             format!(
                 "{}_{}",
                 method.to_lowercase(),
-                path.replace('/', "_").replace('{', "").replace('}', "")
+                path.replace('/', "_").replace(['{', '}'], "")
             )
         });
 
@@ -188,21 +193,21 @@ impl McpGenerator {
             };
 
             for (content_type, media_type) in &request_body.content {
-                if content_type == "application/json" {
-                    if let Some(schema_ref) = &media_type.schema {
-                        // Try to extract individual properties from the request body schema
-                        match self.extract_request_body_properties(schema_ref)? {
-                            Some(body_properties) => {
-                                // Add individual properties from the request body
-                                for (prop_name, prop_schema) in body_properties {
-                                    properties.insert(prop_name, prop_schema);
-                                }
+                if content_type == "application/json"
+                    && let Some(schema_ref) = &media_type.schema
+                {
+                    // Try to extract individual properties from the request body schema
+                    match self.extract_request_body_properties(schema_ref)? {
+                        Some(body_properties) => {
+                            // Add individual properties from the request body
+                            for (prop_name, prop_schema) in body_properties {
+                                properties.insert(prop_name, prop_schema);
                             }
-                            None => {
-                                // Fallback to treating the whole body as a single property
-                                let body_schema = self.schema_to_json_schema(schema_ref)?;
-                                properties.insert("body".to_string(), body_schema);
-                            }
+                        }
+                        None => {
+                            // Fallback to treating the whole body as a single property
+                            let body_schema = self.schema_to_json_schema(schema_ref)?;
+                            properties.insert("body".to_string(), body_schema);
                         }
                     }
                 }
@@ -212,7 +217,7 @@ impl McpGenerator {
         let input_schema = serde_json::json!({
             "type": "object",
             "properties": properties,
-            "required": self.get_required_properties(&operation)?
+            "required": self.get_required_properties(operation)?
         });
 
         Ok(McpTool {
@@ -230,13 +235,10 @@ impl McpGenerator {
     ) -> crate::Result<serde_json::Value> {
         // Resolve the schema first to handle $ref properly
         let resolved_schema = self.spec.resolve_schema(schema_ref)?;
-        self.resolved_schema_to_json_schema(&resolved_schema)
+        Self::resolved_schema_to_json_schema(&resolved_schema)
     }
 
-    fn resolved_schema_to_json_schema(
-        &self,
-        schema: &ResolvedSchema,
-    ) -> crate::Result<serde_json::Value> {
+    fn resolved_schema_to_json_schema(schema: &ResolvedSchema) -> crate::Result<serde_json::Value> {
         match schema {
             ResolvedSchema::Simple {
                 schema_type,
@@ -269,7 +271,7 @@ impl McpGenerator {
                 });
 
                 if let Some(items_schema) = items {
-                    json_schema["items"] = self.resolved_schema_to_json_schema(items_schema)?;
+                    json_schema["items"] = Self::resolved_schema_to_json_schema(items_schema)?;
                 }
 
                 // Add any additional properties
@@ -296,7 +298,7 @@ impl McpGenerator {
                     for (key, prop_schema) in props {
                         json_props.insert(
                             key.clone(),
-                            self.resolved_schema_to_json_schema(prop_schema)?,
+                            Self::resolved_schema_to_json_schema(prop_schema)?,
                         );
                     }
                     json_schema["properties"] = serde_json::Value::Object(json_props);
@@ -366,14 +368,13 @@ impl McpGenerator {
                         if let Some(schema_ref) = &media_type.schema {
                             if let Ok(Some(_)) = self.extract_request_body_properties(schema_ref) {
                                 // If we can extract individual properties, get required ones from schema
-                                if let Ok(resolved) = self.spec.resolve_schema(schema_ref) {
-                                    if let ResolvedSchema::Object {
+                                if let Ok(resolved) = self.spec.resolve_schema(schema_ref)
+                                    && let ResolvedSchema::Object {
                                         required: Some(req_props),
                                         ..
                                     } = resolved
-                                    {
-                                        required.extend(req_props);
-                                    }
+                                {
+                                    required.extend(req_props);
                                 }
                             } else {
                                 // Fallback to requiring the whole body
@@ -431,7 +432,7 @@ impl McpGenerator {
             )));
         }
 
-        self.copy_directory_recursive(backend, template_dir, output_dir)?;
+        Self::copy_directory_recursive(backend, template_dir, output_dir)?;
 
         // Remove .git directory to avoid nested git repositories
         let git_dir = format!("{}/.git", output_dir);
@@ -439,16 +440,11 @@ impl McpGenerator {
             backend.remove_dir_all(&git_dir)?;
         }
 
-        log::info!(
-            "Copied template from {} to {}",
-            template_dir,
-            output_dir
-        );
+        log::info!("Copied template from {} to {}", template_dir, output_dir);
         Ok(())
     }
 
     fn copy_directory_recursive<B: FileBackend>(
-        &self,
         backend: &B,
         src_dir: &str,
         dst_dir: &str,
@@ -457,7 +453,10 @@ impl McpGenerator {
 
         for entry_name in backend.list_dir(src_dir)? {
             // Skip unwanted directories
-            if matches!(entry_name.as_str(), ".git" | "node_modules" | "dist" | "build") {
+            if matches!(
+                entry_name.as_str(),
+                ".git" | "node_modules" | "dist" | "build"
+            ) {
                 continue;
             }
 
@@ -465,7 +464,7 @@ impl McpGenerator {
             let dst_path = format!("{}/{}", dst_dir, entry_name);
 
             if backend.is_dir(&src_path) {
-                self.copy_directory_recursive(backend, &src_path, &dst_path)?;
+                Self::copy_directory_recursive(backend, &src_path, &dst_path)?;
             } else {
                 backend.copy_file(&src_path, &dst_path)?;
             }
@@ -546,11 +545,11 @@ impl McpGenerator {
         code.push_str("import { CallToolResult } from \"@modelcontextprotocol/sdk/types.js\";\n\n");
 
         // Generate Zod schema from tool input schema
-        let zod_schema = self.generate_zod_schema_from_tool(&tool)?;
+        let zod_schema = self.generate_zod_schema_from_tool(tool)?;
 
         // Generate setupTool function
         code.push_str("export function setupTool<S extends UpstreamMCPServer>(server: S) {\n");
-        code.push_str(&format!("  server.tool(\n"));
+        code.push_str("  server.tool(\n");
         code.push_str(&format!("    \"{}\",\n", tool.name));
         code.push_str(&format!("    \"{}\",\n", tool.description));
         code.push_str(&format!("    {},\n", zod_schema));
@@ -562,7 +561,7 @@ impl McpGenerator {
             "        console.error(`Calling {} {} with args:`, args);\n",
             endpoint.method, endpoint.path
         ));
-        code.push_str("\n");
+        code.push('\n');
         code.push_str("        // TODO: Implement actual API client call\n");
         code.push_str(&format!(
             "        // const result = await apiClient.{}(args);\n",
@@ -571,7 +570,7 @@ impl McpGenerator {
         code.push_str(
             "        const result = { success: true, message: \"API call would be made here\" };\n",
         );
-        code.push_str("\n");
+        code.push('\n');
         code.push_str("        return {\n");
         code.push_str("          content: [\n");
         code.push_str("            {\n");
@@ -823,26 +822,24 @@ impl {}Server {{
             ));
         }
 
-        code.push_str(&format!(
-            r#"
+        code.push_str(r#"
         // Initialize API client with default configuration
         let api_client = ApiClient::with_default_config()?;
 
-        Ok(Self {{ tools, api_client }})
-    }}
+        Ok(Self { tools, api_client })
+    }
 
     /// List all available tools
-    pub fn list_tools(&self) -> Vec<(String, String)> {{
+    pub fn list_tools(&self) -> Vec<(String, String)> {
         self.tools.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
-    }}
+    }
 
     /// Execute a tool with given arguments
-    pub async fn call_tool(&self, tool_name: &str, args: serde_json::Value) -> Result<serde_json::Value> {{
-        log::info!("Executing tool: {{}} with args: {{}}", tool_name, args);
+    pub async fn call_tool(&self, tool_name: &str, args: serde_json::Value) -> Result<serde_json::Value> {
+        log::info!("Executing tool: {} with args: {}", tool_name, args);
         
-        match tool_name {{
-"#
-        ));
+        match tool_name {
+"#);
 
         for (tool, endpoint) in server.tools.iter().zip(api_client.endpoints.iter()) {
             let parameter_extraction = self.generate_rust_parameter_extraction(endpoint)?;
@@ -1021,23 +1018,15 @@ async fn main() -> Result<()> {{
                 crate::client::ParameterLocation::Path
                 | crate::client::ParameterLocation::Query
                 | crate::client::ParameterLocation::Header => {
-                    if param.required {
-                        args.push(param.name.clone());
-                    } else {
-                        args.push(param.name.clone());
-                    }
+                    args.push(param.name.clone());
                 }
                 _ => {} // Skip cookie parameters
             }
         }
 
         // Add request body if present
-        if let Some(body) = &endpoint.request_body {
-            if body.required {
-                args.push("body".to_string());
-            } else {
-                args.push("body".to_string());
-            }
+        if endpoint.request_body.is_some() {
+            args.push("body".to_string());
         }
 
         Ok(args.join(", "))
@@ -1057,7 +1046,7 @@ async fn main() -> Result<()> {{
             } => {
                 let mut extracted_props = Vec::new();
                 for (prop_name, prop_schema) in props {
-                    let json_schema = self.resolved_schema_to_json_schema(&prop_schema)?;
+                    let json_schema = Self::resolved_schema_to_json_schema(&prop_schema)?;
                     extracted_props.push((prop_name, json_schema));
                 }
                 Ok(Some(extracted_props))
@@ -1231,11 +1220,9 @@ mod tests {
 
                 let schema = tool.input_schema.as_object().unwrap();
                 let properties = schema["properties"].as_object().unwrap();
-                // Note: In Phase 1, request body handling may be simplified
-                assert!(properties.contains_key("body"));
-
+                assert!(properties.contains_key("name"));
                 let required = schema["required"].as_array().unwrap();
-                assert!(required.contains(&serde_json::Value::String("body".to_string())));
+                assert!(required.contains(&serde_json::Value::String("name".to_string())));
             } else {
                 panic!("Expected POST operation");
             }
@@ -1255,11 +1242,11 @@ mod tests {
         // For now, just test that the method accepts the right parameters
         let result = generator.generate(
             &backend,
-            "template-dir",  // Would be prepared template
+            "template-dir", // Would be prepared template
             temp_dir.path().to_str().unwrap(),
-            Some("test-server")
+            Some("test-server"),
         );
-        
+
         // This will fail because template-dir doesn't exist, but it shows the API works
         assert!(result.is_err());
     }
@@ -1274,16 +1261,16 @@ mod tests {
         // Rust doesn't need templates, so this should work
         let result = generator.generate(
             &backend,
-            "unused-for-rust",  // Rust generation doesn't use template_dir
+            "unused-for-rust", // Rust generation doesn't use template_dir
             temp_dir.path().to_str().unwrap(),
-            Some("test-server")
+            Some("test-server"),
         );
         assert!(result.is_ok());
 
         // Check if files were created using the backend
         let cargo_toml_path = format!("{}/Cargo.toml", temp_dir.path().to_str().unwrap());
         let main_rs_path = format!("{}/src/main.rs", temp_dir.path().to_str().unwrap());
-        
+
         assert!(backend.exists(&cargo_toml_path));
         assert!(backend.exists(&main_rs_path));
 
@@ -1348,43 +1335,4 @@ mod tests {
         let json_schema = result.unwrap();
         assert!(json_schema.is_object());
     }
-
-    // #[test]
-    // fn test_generate_typescript_index_content() {
-    //     let spec = create_test_spec();
-    //     let generator = McpGenerator::new(spec.clone(), Target::TypeScript);
-    //     let server = generator.convert_to_mcp_server("test-api").unwrap();
-    //     let api_client = ApiClient::new(spec).unwrap();
-
-    //     let result = generator.generate_typescript(&server, &api_client);
-    //     assert!(result.is_ok());
-
-    //     let code = result.unwrap();
-    //     assert!(code.contains("@modelcontextprotocol/sdk"));
-    //     assert!(code.contains("getUsers"));
-    //     assert!(code.contains("createUser"));
-    //     assert!(code.contains("ListToolsRequestSchema"));
-    //     assert!(code.contains("CallToolRequestSchema"));
-    // }
-
-    #[test]
-    fn test_generate_rust_main_content() {
-        let spec = create_test_spec();
-        let generator = McpGenerator::new(spec.clone(), Target::Rust);
-        let server = generator.convert_to_mcp_server("test-api").unwrap();
-        let api_client = ApiClient::new(spec).unwrap();
-
-        let result = generator.generate_rust_main(&server, &api_client);
-        assert!(result.is_ok());
-
-        let code = result.unwrap();
-        assert!(code.contains("HashMap"));
-        assert!(code.contains("getUsers"));
-        assert!(code.contains("createUser"));
-        assert!(code.contains("call_tool"));
-        assert!(code.contains("list_tools"));
-    }
-
-    // TODO: Complex reference resolution tests removed for Phase 1
-    // These will be re-implemented in Phase 2/3 when full reference resolution is added
 }

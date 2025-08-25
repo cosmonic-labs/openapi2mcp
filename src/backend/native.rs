@@ -1,5 +1,5 @@
-use crate::backend::FileBackend;
 use crate::Result;
+use crate::backend::FileBackend;
 use std::fs;
 use std::path::Path;
 
@@ -61,11 +61,14 @@ impl FileBackend for NativeFileBackend {
 /// Helper function to prepare TypeScript template (separate step)
 pub fn prepare_typescript_template(template_dir: &str) -> Result<()> {
     use std::process::Command;
-    
+
     if !Path::new(template_dir).exists() {
-        log::info!("Cloning TypeScript template from GitHub to {}", template_dir);
+        log::info!(
+            "Cloning TypeScript template from GitHub to {}",
+            template_dir
+        );
         let status = Command::new("git")
-            .args(&[
+            .args([
                 "clone",
                 "https://github.com/cosmonic-labs/mcp-server-template-ts",
                 template_dir,

@@ -108,7 +108,7 @@ impl ApiClient {
             .inner
             .servers
             .first()
-            .and_then(|server| Some(server.url.clone()))
+            .map(|server| server.url.clone())
     }
 
     fn create_endpoint(
@@ -122,7 +122,7 @@ impl ApiClient {
             format!(
                 "{}_{}",
                 method.to_lowercase(),
-                path.replace('/', "_").replace('{', "").replace('}', "")
+                path.replace('/', "_").replace(['{', '}'], "")
             )
         });
 
@@ -163,7 +163,7 @@ impl ApiClient {
                 }
             };
 
-            let _location = match param {
+            match param {
                 openapiv3::Parameter::Query { parameter_data, .. } => {
                     parameters.push(ApiParameter {
                         name: parameter_data.name.clone(),
@@ -465,18 +465,10 @@ export class ApiClient {{
             }
         }
 
-        if let Some(body) = &endpoint.request_body {
-            if body.required {
-                param_parts.push("body: any".to_string());
-            } else {
-                param_parts.push("body?: any".to_string());
-            }
-        }
-
         let params_str = if param_parts.is_empty() {
             String::new()
         } else {
-            format!("{}", param_parts.join(", "))
+            param_parts.join(", ").to_string()
         };
 
         // Determine return type

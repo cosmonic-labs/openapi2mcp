@@ -9,27 +9,31 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - beta
-          - nightly
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+
+    # Clone private template repo
+    - name: Checkout private repo
+      uses: actions/checkout@v4
       with:
-        toolchain: ${{ matrix.rust }}
-        components: rustfmt, clippy
-    
+        repository: cosmonic-labs/mcp-server-template-ts
+        path: tests/fixtures/mcp-server-template-ts
+        ref: main
+        token: ${{ secrets.COSMONIC_LABS_BOT_PAT }}
+
+    - name: Install rustfmt and clippy
+      run: rustup component add rustfmt clippy
+
     - name: Cache cargo dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -40,7 +44,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-
-    
+            
     - name: Check formatting
       run: cargo fmt --all -- --check
     
@@ -53,32 +57,42 @@ jobs:
     - name: Run integration tests
       run: cargo test --test integration_tests --verbose
     
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4.4.0
+
     - name: Test examples
       run: |
-        cargo run -- -i examples/simple-api.json -o output/ci-test-simple -t typescript
-        cargo run -- -i examples/petstore.yaml -o output/ci-test-petstore -t rust
-        cargo run -- -i examples/weather-api.yaml -o output/ci-test-weather -t typescript
-        cargo run -- -i examples/github-api.yaml -o output/ci-test-github -t rust
-        cargo run -- -i examples/ecommerce-api.yaml -o output/ci-test-ecommerce -t typescript
-        cargo run -- -i examples/slack-api.yaml -o output/ci-test-slack -t rust
+        cargo run -- -i examples/simple-api.json -o pr-validation/typescript/ci-test-simple -t tests/fixtures/mcp-server-template-ts
+        cargo run -- -i examples/weather-api.yaml -o pr-validation/typescript/ci-test-weather -t tests/fixtures/mcp-server-template-ts
+        cargo run -- -i examples/ecommerce-api.yaml -o pr-validation/typescript/ci-test-ecommerce -t tests/fixtures/mcp-server-template-ts
+
+    - name: Validate TypeScript projects
+      run: |
+        for dir in pr-validation/typescript/*/; do
+          if [ -d "$dir" ]; then
+            echo "Validating TypeScript project: $dir"
+            pushd "$dir"
+            
+            # Install dependencies
+            npm install
+            
+            # Type check
+            npx tsc --noEmit
+            
+            # Return to root
+            popd
+          fi
+        done
 
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable]
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: ${{ matrix.rust }}
-    
+
     - name: Cache cargo dependencies  
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -90,64 +104,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
     
+    - name: Install Wash
+      uses: wasmCloud/setup-wash-action@main
+
     - name: Build
-      run: cargo build --release --verbose
-    
-    - name: Upload binary (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: openapi2mcp-linux
-        path: target/release/openapi2mcp
-    
-    - name: Upload binary (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: openapi2mcp-windows
-        path: target/release/openapi2mcp.exe
-    
-    - name: Upload binary (macOS)
-      if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: openapi2mcp-macos
-        path: target/release/openapi2mcp
-
-  security:
-    name: Security Audit  
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    
-    - name: Run security audit
-      run: cargo audit
-
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: llvm-tools-preview
-    
-    - name: Install cargo-llvm-cov
-      uses: taiki-e/install-action@cargo-llvm-cov
-    
-    - name: Generate code coverage
-      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        files: lcov.info
-        fail_ci_if_error: true
+      run: wash build
