@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-const FS_ROOT: &str = "/Users/brooks/.local/share/wash/plugins/fs/openapi2mcp";
+const FS_ROOT: &str = ".local/share/wash/plugins/fs/openapi2mcp";
 
 pub(crate) struct Plugin;
 
@@ -23,7 +23,7 @@ impl WashPlugin for Plugin {
         Metadata {
             id: "openapi2mcp".into(),
             name: "openapi2mcp".into(),
-            description: "".to_string(),
+            description: "Generate MCP server tools from OpenAPI endpoints".to_string(),
             contact: "Cosmonic Team <team@cosmonic.com>".to_string(),
             url: "https://github.com/cosmonic-labs/openapi2mcp".to_string(),
             license: "Apache-2.0".to_string(),
@@ -31,7 +31,7 @@ impl WashPlugin for Plugin {
             command: Some(Command {
                 id: "openapi2mcp".into(),
                 name: "openapi2mcp".into(),
-                description: "Generates MCP from OpenAPI specifications".into(),
+                description: "Generate MCP server tools from OpenAPI endpoints".into(),
                 flags: vec![
                     (
                         "dir".to_string(),
@@ -63,6 +63,16 @@ impl WashPlugin for Plugin {
                             value: None,
                         },
                     ),
+                    (
+                        "home-dir".to_string(),
+                        CommandArgument {
+                            name: "home-dir".to_string(),
+                            description: "Home directory".to_string(),
+                            env: Some("HOME".to_string()),
+                            default: Some("/home".to_string()),
+                            value: None,
+                        },
+                    ),
                 ],
                 arguments: vec![CommandArgument {
                     name: "input".to_string(),
@@ -89,9 +99,21 @@ impl WashPlugin for Plugin {
     /// Handle the execution of a given command. The resulting value should be the string that will
     /// be printed to the user, or an error message if the command failed.
     fn run(runner: Runner, cmd: Command) -> Result<String, String> {
-        let Some(input_file) = cmd.arguments.get(0).and_then(|arg| arg.value.as_ref()) else {
-            return Err("No input file provided".to_string());
-        };
+        // Find the "input" argument value
+        let input_file = cmd
+            .arguments
+            .iter()
+            .find(|arg| arg.name == "input")
+            .and_then(|arg| arg.value.as_ref())
+            .ok_or_else(|| "No input file provided".to_string())?;
+
+        // Find the "home-dir" flag value
+        let home_dir = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "home-dir")
+            .and_then(|(_, arg)| arg.value.as_ref())
+            .ok_or_else(|| "No home directory specified".to_string())?;
         let (openapi_yaml, _stderr) = runner.host_exec("cat", &vec![input_file.to_owned()])?;
 
         let preopens = wasi::filesystem::preopens::get_directories();
@@ -112,13 +134,12 @@ impl WashPlugin for Plugin {
         let spec = openapi::parse_openapi_spec(openapi_yaml)
             .map_err(|e| format!("Failed to parse OpenAPI spec: {e}"))?;
         // TODO: cmd flag language get
-        // let generator = mcp::McpGenerator::new(spec, crate::cli::Target::TypeScript);
         let (_stdout, _stderr) = runner.host_exec(
             "git",
             &[
                 "clone".to_string(),
                 "https://github.com/cosmonic-labs/mcp-server-template-ts".to_string(),
-                format!("{FS_ROOT}/mcp-server-template-ts"),
+                format!("{home_dir}/{FS_ROOT}/mcp-server-template-ts"),
             ],
         )?;
 
@@ -143,7 +164,10 @@ impl WashPlugin for Plugin {
 
         let (_stdout, _stderr) = runner.host_exec(
             "mv",
-            &[format!("{FS_ROOT}/generated"), output_dir.to_owned()],
+            &[
+                format!("{home_dir}/{FS_ROOT}/generated"),
+                output_dir.to_owned(),
+            ],
         )?;
 
         Ok("MCP server generated successfully".to_string())
