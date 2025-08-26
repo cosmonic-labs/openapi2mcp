@@ -11,7 +11,7 @@
   "templates": [],
   "wit": {
     "sources": {
-      "wasmcloud:wash": "../wash/wit"
+      "wasmcloud:wash": "git+https://github.com/wasmcloud/wash.git"
     }
   }
 }
