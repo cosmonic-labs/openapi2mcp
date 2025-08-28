@@ -21,4 +21,4 @@ wit-bindgen = "0.44.0"
 wasi = "0.13"
 
 [dev-dependencies]
-tempfile = "3.0"
+tempfile = "3.21"
