@@ -95,21 +95,21 @@ jobs:
     
     - name: Upload binary (Linux)
       if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openapi2mcp-linux
         path: target/release/openapi2mcp
     
     - name: Upload binary (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openapi2mcp-windows
         path: target/release/openapi2mcp.exe
     
     - name: Upload binary (macOS)
       if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openapi2mcp-macos
         path: target/release/openapi2mcp
