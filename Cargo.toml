@@ -18,7 +18,7 @@ url = "2.4"
 
 [target.'cfg(all(target_os = "wasi", target_env = "p2"))'.dependencies]
 wit-bindgen = "0.44.0"
-wasi = "0.13"
+wasi = "0.14"
 
 [dev-dependencies]
 tempfile = "3.0"
