@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     # Clone private template repo
     - name: Checkout private repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: cosmonic-labs/mcp-server-template-ts
         path: tests/fixtures/mcp-server-template-ts
@@ -59,7 +59,7 @@ jobs:
     
 
     - name: Install Node.js
-      uses: actions/setup-node@v4.4.0
+      uses: actions/setup-node@v5.0.0
 
     - name: Test examples
       run: |
@@ -89,7 +89,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Cache cargo dependencies  
       uses: actions/cache@v4
