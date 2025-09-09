@@ -1,0 +1,1612 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "version": "V3",
+    "title": "Firefly API",
+    "description": "REST API for Adobe Firefly for enterprise usage"
+},
+"servers": [
+    {
+        "url": "https://firefly-api.adobe.io"
+    }
+],
+"security": [
+  {
+      "X-Api-Key": [],
+      "AccessToken": []
+  }
+],
+  "paths": {
+    "/v3/images/fill-async": {
+      "post": {
+        "operationId": "fillImagesV3Async",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FillImageRequestV3"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_fillImagesV3Async"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncAcceptResponseV3"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Link": {
+                "description": "Links to check job status & cancel job",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "bad_request": {
+                    "value": {
+                      "error_code": "bad_request"
+                    }
+                  },
+                  "empty_input_body": {
+                    "value": {
+                      "error_code": "empty_input_body"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "access_error": {
+                    "value": {
+                      "error_code": "access_error"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "x-access-error": {
+                "description": "Indicates reason for unauthorized access. Possible values are:\n- quota_exhausted\n- user_non_entitled\n- user_profile_denied\n- invalid_ims_scope",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "timeout_error": {
+                    "value": {
+                      "error_code": "timeout_error"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "413": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_content_type": {
+                    "value": {
+                      "error_code": "invalid_content_type"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "error_code": "validation_error",
+                      "validation_errors": [
+                        {
+                          "ctx": {
+                            "enum_values": [
+                              "photo",
+                              "art"
+                            ]
+                          },
+                          "loc": [
+                            "body",
+                            "contentClass"
+                          ],
+                          "msg": "value is not a valid enumeration member; permitted: 'photo', 'art'",
+                          "type": "type_error.enum"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rate_limited": {
+                    "value": {
+                      "error_code": "rate_limited"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "retry-after": {
+                "description": "Indicates the date after which the client should retry the request.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-access-rate-limit-level": {
+                "description": "Indicates the level at which the rate limit was applied. Possible values are:\n- org: The rate limit was applied to the organisation\n- account: The rate limit was applied to the organization's tech account",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "runtime_error": {
+                    "value": {
+                      "error_code": "runtime_error"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+  "summary": "Fill Image Async - Model 3",
+        "description": "Fills an area of an image based on images that Firefly generates based on your prompt. We call this part of an image an image, and this mask defines the area which should be filled. For example you can have an circular mask defined on an image and Firefly can generate the image of a planet in that area.\n\nPerforms this asynchronously, meaning you make your request and provide an image with your text prompt and on success, returns a <code>jobID</code>, status endpoint and endpoint to cancel the request. You can later poll the status endpoint to get updates on whether the job completes and to get the image."
+      }
+    },
+    "/v3/status/{jobId}": {
+      "get": {
+        "operationId": "jobResultV3",
+        "parameters": [
+          {
+            "description": "Unique identifier for the submitted job",
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "description": "Unique identifier for the submitted job",
+              "title": "title job urn id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "cancel_pending": {
+                    "value": {
+                      "error_code": "some_error_code",
+                      "jobId": "ede28272-5726-4179-84f0-020250966e32",
+                      "message": "some_message",
+                      "status": "cancel_pending"
+                    }
+                  },
+                  "cancelled": {
+                    "value": {
+                      "error_code": "some_error_code",
+                      "jobId": "ede28272-5726-4179-84f0-020250966e32",
+                      "message": "some_message",
+                      "status": "cancelled"
+                    }
+                  },
+                  "failed": {
+                    "value": {
+                      "error_code": "some_error_code",
+                      "jobId": "ede28272-5726-4179-84f0-020250966e32",
+                      "message": "some_message",
+                      "status": "failed"
+                    }
+                  },
+                  "running": {
+                    "value": {
+                      "jobId": "ede28272-5726-4179-84f0-020250966e32",
+                      "status": "running"
+                    }
+                  },
+                  "succeeded": {
+                    "value": {
+                      "jobId": "ede28272-5726-4179-84f0-020250966e32",
+                      "result": {
+                        "outputs": [
+                          {
+                            "image": {
+                              "url": "https://example.com"
+                            },
+                            "seed": 1
+                          }
+                        ],
+                        "size": {
+                          "height": 1024,
+                          "width": 1024
+                        }
+                      },
+                      "status": "succeeded"
+                    }
+                  },
+                  "timeout": {
+                    "value": {
+                      "error_code": "some_error_code",
+                      "jobId": "ede28272-5726-4179-84f0-020250966e32",
+                      "message": "some_message",
+                      "status": "timeout"
+                    }
+                  }
+                },
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AsyncTaskResponseV3"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AsyncApiErrorV3"
+                    }
+                  ],
+                  "title": "Response Jobresultv3"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Link": {
+                "description": "Links to check job status & cancel job",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error_code": "unknown_job_id",
+                  "message": "The job id is unknown."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncApiErrorV3"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": " Get Result - Async"
+      }
+    },
+    "/v3/cancel/{jobId}": {
+      "put": {
+        "operationId": "cancelJobV3",
+        "parameters": [
+          {
+            "description": "Unique identifier for the submitted job",
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "description": "Unique identifier for the submitted job",
+              "title": "title job urn id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unknown_job_id": {
+                    "value": {
+                      "error_code": "unknown_job_id",
+                      "message": "The job id is unknown."
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncApiErrorV3"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "job_already_canceled": {
+                    "value": {
+                      "error_code": "job_already_canceled",
+                      "message": "The job was already canceled."
+                    }
+                  },
+                  "job_cancel_failed": {
+                    "value": {
+                      "error_code": "job_cancel_failed",
+                      "message": "The job failed to cancel."
+                    }
+                  },
+                  "job_completed": {
+                    "value": {
+                      "error_code": "job_completed",
+                      "message": "The job was already completed."
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncApiErrorV3"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "job_timeout": {
+                    "value": {
+                      "error_code": "job_timeout",
+                      "message": "The job timed out."
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncApiErrorV3"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": " Cancel Job - Async"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AlignmentHorizontal": {
+        "description": "An enumeration.",
+        "enum": [
+          "center",
+          "left",
+          "right"
+        ],
+        "title": "AlignmentHorizontal"
+      },
+      "AlignmentVertical": {
+        "description": "An enumeration.",
+        "enum": [
+          "center",
+          "top",
+          "bottom"
+        ],
+        "title": "AlignmentVertical"
+      },
+      "ApiError": {
+        "description": "The error within the error response.",
+        "properties": {
+          "error_code": {
+            "$ref": "#/components/schemas/ColligoErrorCodeAsyncV3"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "stack_trace": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stack Trace",
+            "type": "array"
+          },
+          "validation_errors": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationErrorMessage"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "error_code"
+        ],
+        "title": "ApiError",
+        "type": "object"
+      },
+      "AsyncAcceptResponseV3": {
+        "properties": {
+          "cancelUrl": {
+            "description": "The URL to cancel the job.",
+            "title": "Cancel URL",
+            "type": "string"
+          },
+          "jobId": {
+            "description": "The ID of the job.",
+            "title": "Job ID",
+            "type": "string"
+          },
+          "statusUrl": {
+            "description": "The URL to check the status of the job.",
+            "title": "Status URL",
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId",
+          "statusUrl",
+          "cancelUrl"
+        ],
+        "title": "AsyncAcceptResponseV3",
+        "type": "object"
+      },
+      "AsyncApiErrorV3": {
+        "description": "The error within the error response.",
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ColligoErrorCodeAsyncV3"
+              },
+              {
+                "$ref": "#/components/schemas/ColliogAsyncStatusErrorCodeV3"
+              },
+              {
+                "$ref": "#/components/schemas/ColligoAsyncCancelErrorCodeV3"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "jobId": {
+            "title": "Jobid",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "validation_errors": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationErrorMessage"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          }
+        },
+        "title": "AsyncApiErrorV3",
+        "type": "object"
+      },
+      "AsyncTaskResponseV3": {
+        "properties": {
+          "jobId": {
+            "description": "The ID of async job.",
+            "title": "Job ID",
+            "type": "string"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "number"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenerateImagesResponseV3"
+              },
+              {
+                "$ref": "#/components/schemas/GenerateSimilarImagesResponseV3"
+              },
+              {
+                "$ref": "#/components/schemas/ExpandImageResponseV3"
+              },
+              {
+                "$ref": "#/components/schemas/FillImageResponseV3"
+              },
+              {
+                "$ref": "#/components/schemas/GenerateObjectCompositeResponseV3"
+              }
+            ],
+            "description": "The result of the job, if the job has completed.",
+            "title": "Result"
+          },
+          "status": {
+            "description": "The status of the job.",
+            "title": "Status of the job",
+            "type": "string",
+            "enum": ["pending", "running", "succeeded", "failed", "canceled"]
+          }
+        },
+        "required": [
+          "status",
+          "jobId"
+        ],
+        "title": "AsyncTaskResponseV3",
+        "type": "object"
+      },
+      "BaseInputImageV3": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/PublicBinaryInputV3",
+            "description": "Source image that Firefly expands, fills or uses to generate similar images",
+            "title": "Source image"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "BaseInputImageV3",
+        "type": "object"
+      },
+      "BaseInputMaskV3": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/PublicBinaryInputV3",
+            "description": "Original mask image.",
+            "title": "Mask image"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "BaseInputMaskV3",
+        "type": "object"
+      },
+      "Body_expandImagesV3Async": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "request": {
+            "$ref": "#/components/schemas/ExpandImageRequestV3"
+          }
+        },
+        "required": [
+          "request",
+          "files"
+        ],
+        "title": "Body_expandImagesV3Async",
+        "type": "object"
+      },
+      "Body_fillImagesV3Async": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "request": {
+            "$ref": "#/components/schemas/FillImageRequestV3"
+          }
+        },
+        "required": [
+          "request",
+          "files"
+        ],
+        "title": "Body_fillImagesV3Async",
+        "type": "object"
+      },
+      "Body_generateImagesV3Async": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GenerateImagesRequestV3"
+          }
+        },
+        "required": [
+          "request",
+          "files"
+        ],
+        "title": "Body_generateImagesV3Async",
+        "type": "object"
+      },
+      "Body_generateObjectCompositeV3Async": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GenerateObjectCompositeRequestV3"
+          }
+        },
+        "required": [
+          "request",
+          "files"
+        ],
+        "title": "Body_generateObjectCompositeV3Async",
+        "type": "object"
+      },
+      "Body_generateSimilarImagesV3Async": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GenerateSimilarImagesRequestV3"
+          }
+        },
+        "required": [
+          "request",
+          "files"
+        ],
+        "title": "Body_generateSimilarImagesV3Async",
+        "type": "object"
+      },
+      "ColligoAsyncCancelErrorCodeV3": {
+        "description": "An enumeration.",
+        "enum": [
+          "job_timeout",
+          "job_completed",
+          "unknown_job_id",
+          "job_already_canceled",
+          "job_cancel_failed"
+        ],
+        "title": "ColligoAsyncCancelErrorCodeV3",
+        "type": "string"
+      },
+      "ColligoErrorCodeAsyncV3": {
+        "description": "An enumeration.",
+        "enum": [
+          "validation_error",
+          "runtime_error",
+          "timeout_error",
+          "rate_limited",
+          "access_error",
+          "invalid_content_type",
+          "empty_input_body",
+          "bad_request"
+        ],
+        "title": "ColligoErrorCodeAsyncV3",
+        "type": "string"
+      },
+      "ColliogAsyncStatusErrorCodeV3": {
+        "description": "An enumeration.",
+        "enum": [
+          "unknown_job_id"
+        ],
+        "title": "ColliogAsyncStatusErrorCodeV3",
+        "type": "string"
+      },
+      "ContentClassV3": {
+        "description": "An enumeration.",
+        "enum": [
+          "photo",
+          "art"
+        ],
+        "title": "ContentClassV3",
+        "type": "string"
+      },
+      "ExpandImageRequestV3": {
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/InputImageV3",
+            "description": "The image to expand. Use a URL or an <code>uploadID</code> as the source for the image. Firefly only allows these listed domains for input URLs in the request: <ul> <li><code>amazonaws.com</code></li> <li><code>windows.net</code></li> <li><code>dropboxusercontent.com</code></li> <li><code>storage.googleapis.com</code></li> </ul>",
+            "title": "Input Image"
+          },
+          "mask": {
+            "$ref": "#/components/schemas/InputMaskV3",
+            "description": "Mask image which will be used to expand the given image.",
+            "title": "Mask Image"
+          },
+          "numVariations": {
+            "description": "Generate this number of variations. <code>numVariations</code> defaults to the number of seed images, or to 1 if you do not specify seeds.",
+            "maximum": 4,
+            "minimum": 1,
+            "title": "The number of variations to generate",
+            "type": "integer"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/Placement",
+            "description": "The position of the source image after Firefly resizes it. The value describes the horizontal and vertical placement and dimensions of the image in the output. Note you cannot use placement for source images when you also apply a mask image.",
+            "title": "Placement"
+          },
+          "prompt": {
+            "description": "An optional text prompt up to 1024 characters. The longer the prompt the better Firefly performs.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "The prompt",
+            "type": "string"
+          },
+          "seeds": {
+            "description": "Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. For example, you can use the same seed to generate a similar image with different styles. If specified alongside with <code>numVariations</code>, the number of seeds must equal to <code>numVariations</code>.",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "The seed image for each variation",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Size"
+              }
+            ],
+            "default": {
+              "height": 2048,
+              "width": 2048
+            },
+            "description": "The desired width and height for the final expanded image in pixels. The maximum size for the output images is 3999px by 3999px.",
+            "title": "The size"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Images expand payload",
+        "type": "object"
+      },
+      "ExpandImageResponseV3": {
+        "properties": {
+          "outputs": {
+            "description": "Each image ID.",
+            "items": {
+              "$ref": "#/components/schemas/OutputImageV3"
+            },
+            "minItems": 1,
+            "title": "The list of images",
+            "type": "array"
+          },
+          "size": {
+            "$ref": "#/components/schemas/Size",
+            "description": "When you provide size as input, this value is the same.",
+            "title": "The actual size of the output"
+          }
+        },
+        "required": [
+          "size",
+          "outputs"
+        ],
+        "title": "Images expand response",
+        "type": "object"
+      },
+      "FillImageRequestV3": {
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/InputImageV3",
+            "description": "The image to expand. Use a URL or an <code>uploadID</code> as the source for the image. Firefly only allows these listed domains for input URLs in the request: <ul> <li><code>amazonaws.com</code></li> <li><code>windows.net</code></li> <li><code>dropboxusercontent.com</code></li> <li><code>storage.googleapis.com</code></li> </ul>",
+            "title": "Input Image"
+          },
+          "mask": {
+            "$ref": "#/components/schemas/InputMaskV3",
+            "description": "Required. Selected areas of a background image that Firefly uses to fill the source image.",
+            "title": "Mask Image"
+          },
+          "negativePrompt": {
+            "description": "An optional text prompt up to 1024 characters. Avoid these characteristics in the generated image.",
+            "maxLength": 1024,
+            "title": "Avoid prompt",
+            "type": "string"
+          },
+          "numVariations": {
+            "description": "Generate this number of variations. <code>numVariations</code> defaults to the number of seed images, or to 1 if you do not specify seeds.",
+            "maximum": 4,
+            "minimum": 1,
+            "title": "The number of variations",
+            "type": "integer"
+          },
+          "prompt": {
+            "description": "An optional text prompt up to 1024 characters. The longer the prompt the better Firefly performs.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "The prompt",
+            "type": "string"
+          },
+          "promptBiasingLocaleCode": {
+            "description": "A hyphen-separated string combining the ISO 639-1 language code and the ISO 3166-1 region, such as en-US. When a locale is set, the prompt will be biased to generate more relevant content for that region. The locale will be auto-detected if not specified based on your profile and the accepted language header.",
+            "title": "The locale used to generate an image",
+            "type": "string"
+          },
+          "seeds": {
+            "description": "Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. For example, you can use the same seed to generate a similar image with different styles. If specified alongside with <code>numVariations</code>, the number of seeds must equal to <code>numVariations</code>.",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "The seed of each variation",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Size"
+              }
+            ],
+            "default": {
+              "height": 2048,
+              "width": 2048
+            },
+            "description": "The desired width and height for the final expanded image in pixels. The supported sizes for the output images are: <ul> <li>Square (1:1) - width 2048px, height 2048px </li> <li>Square (1:1) - width 1024px, height 1024px </li> <li>Landscape (4:3)  - width 2304px, height 1792px </li> <li>Portrait (3:4)  - width 1792px, height 2304px</li> <li>Widescreen (16:9) - width 2688px, height 1536px </li> <li>(7:4)  - width 1344px, height 768px </li> <li>(9:7) - width 1152px, height 896px </li> <li>(7:9) - width 896px, height 1152px</li> </ul>",
+            "title": "The size"
+          }
+        },
+        "required": [
+          "image",
+          "mask"
+        ],
+        "title": "Fill images payload",
+        "type": "object"
+      },
+      "FillImageResponseV3": {
+        "properties": {
+          "outputs": {
+            "description": "Each image ID.",
+            "items": {
+              "$ref": "#/components/schemas/OutputImageV3"
+            },
+            "minItems": 1,
+            "title": "The list of images",
+            "type": "array"
+          },
+          "size": {
+            "$ref": "#/components/schemas/Size",
+            "description": "When you provide size as input, this value is the same.",
+            "title": "The actual size used for the outputs"
+          }
+        },
+        "required": [
+          "size",
+          "outputs"
+        ],
+        "title": "Fill images response.",
+        "type": "object"
+      },
+      "GenerateImagesRequestV3": {
+        "properties": {
+          "contentClass": {
+            "$ref": "#/components/schemas/ContentClassV3",
+            "description": "Generate an image to being more photographic or more like art. Options include <code>photo</code> or <code>art</code>.",
+            "title": "The content class"
+          },
+          "negativePrompt": {
+            "description": "Firefly tries to avoid generating anything you specify in this text prompt.",
+            "maxLength": 1024,
+            "title": "Avoid prompt",
+            "type": "string"
+          },
+          "numVariations": {
+            "description": "Generate this number of variations. <code>numVariations</code> defaults to the number of seed images, or to 1 if you do not specify seeds.",
+            "maximum": 4,
+            "minimum": 1,
+            "title": "The number of variations",
+            "type": "integer"
+          },
+          "prompt": {
+            "description": "An optional text prompt up to 1024 characters. The longer the prompt the better Firefly performs.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "The prompt",
+            "type": "string"
+          },
+          "promptBiasingLocaleCode": {
+            "description": "A hyphen-separated string combining the ISO 639-1 language code and the ISO 3166-1 region, such as en-US. When a locale is set, the prompt will be biased to generate more relevant content for that region. The locale will be auto-detected if not specified based on your profile and the accepted language header.",
+            "title": "The locale used for image generations",
+            "type": "string"
+          },
+          "seeds": {
+            "description": "Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. For example, you can use the same seed to generate a similar image with different styles. If specified alongside with <code>numVariations</code>, the number of seeds must equal to <code>numVariations</code>.",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "The seed image for each variation",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Size"
+              }
+            ],
+            "default": {
+              "height": 2048,
+              "width": 2048
+            },
+            "description": "The desired width and height for the final image in pixels. The supported sizes for the output images are: <ul> <li>Square (1:1) - width 2048px, height 2048px </li> <li>Square (1:1) - width 1024px, height 1024px </li> <li>Landscape (4:3)  - width 2304px, height 1792px </li> <li>Portrait (3:4)  - width 1792px, height 2304px</li> <li>Widescreen (16:9) - width 2688px, height 1536px </li> <li>(7:4)  - width 1344px, height 768px </li> <li>(9:7) - width 1152px, height 896px </li> <li>(7:9) - width 896px, height 1152px</li> </ul>",
+            "title": "The size"
+          },
+          "structure": {
+            "$ref": "#/components/schemas/StructureReferenceV3"
+          },
+          "style": {
+            "$ref": "#/components/schemas/StylesV3"
+          },
+          "visualIntensity": {
+            "description": "Adjusts the overall intensity of your photo's characteristic, such as contrast, shadow and hue.",
+            "maximum": 10,
+            "minimum": 2,
+            "title": "Visual Intensity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "Generating images from prompt",
+        "type": "object"
+      },
+      "GenerateImagesResponseV3": {
+        "properties": {
+          "contentClass": {
+            "$ref": "#/components/schemas/ContentClassV3",
+            "description": "Generate an image to being more photographic or more like art. Either <code>photo</code> or <code>art</code>.",
+            "title": "The detected content class"
+          },
+          "outputs": {
+            "description": "Each image ID.",
+            "items": {
+              "$ref": "#/components/schemas/OutputImageV3"
+            },
+            "minItems": 1,
+            "title": "List of images",
+            "type": "array"
+          },
+          "promptHasBlockedArtists": {
+            "description": "The generated image does not comply to its full prompt if the prompt names artists that are blocked.",
+            "title": "The prompt had artists that were blocked",
+            "type": "boolean"
+          },
+          "promptHasDeniedWords": {
+            "description": "The generated image does not comply to its full prompt if the prompt contains blocked words or descriptions.",
+            "title": "The prompt had denied words",
+            "type": "boolean"
+          },
+          "size": {
+            "$ref": "#/components/schemas/Size"
+          }
+        },
+        "required": [
+          "size",
+          "outputs"
+        ],
+        "title": "Generating images from prompt",
+        "type": "object"
+      },
+      "GenerateObjectCompositeRequestV3": {
+        "properties": {
+          "contentClass": {
+            "$ref": "#/components/schemas/ContentClassV3"
+          },
+          "image": {
+            "$ref": "#/components/schemas/InputImageV3",
+            "description": "The image to expand. You can either use a url or an <code>uploadID</code> as the source for the image. Firefly only allows these listed domains as input URL in the request: <ul> <li><code>amazonaws.com</code></li> <li><code>windows.net</code></li> <li><code>dropboxusercontent.com</code></li> </ul>",
+            "title": "Input Image"
+          },
+          "mask": {
+            "$ref": "#/components/schemas/BaseInputMaskV3",
+            "description": "Required. Selected areas of a background image that Firefly uses to fill the source image.",
+            "title": "Mask of the object"
+          },
+          "numVariations": {
+            "description": "Generate this number of variations. Defaults to the number of seed images, or to 1 if you do not specify seeds.",
+            "maximum": 4,
+            "minimum": 1,
+            "title": "The number of variations to generate",
+            "type": "integer"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/Placement",
+            "description": "The position of the source image after Firefly adjusts it. The value describes the horizontal and vertical placement and dimensions of the image in the output. Note you cannot use placement for source images when you also apply a mask image.",
+            "title": "Object placement"
+          },
+          "prompt": {
+            "description": "An optional text prompt up to 1024 characters. The longer the prompt the better Firefly performs.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "The prompt",
+            "type": "string"
+          },
+          "seeds": {
+            "description": "Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. If specified alongside with <code>numVariations</code>, the number of seeds must equal to <code>numVariations</code>.",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "The seed image for each variation",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Size"
+              }
+            ],
+            "default": {
+              "height": 2048,
+              "width": 2048
+            },
+            "description": "The desired width and height for the final image in pixels. The supported sizes for the output images are: <ul> <li>Square (1:1) - width 2048px, height 2048px </li> <li>Square (1:1) - width 1024px, height 1024px </li> <li>Landscape (4:3)  - width 2304px, height 1792px </li> <li>Portrait (3:4)  - width 1792px, height 2304px</li> <li>Widescreen (16:9) - width 2688px, height 1536px </li> <li>(7:4)  - width 1344px, height 768px </li> <li>(9:7) - width 1152px, height 896px </li> <li>(7:9) - width 896px, height 1152px</li> </ul>",
+            "title": "The size"
+          },
+          "style": {
+            "$ref": "#/components/schemas/StylesV3"
+          }
+        },
+        "required": [
+          "image",
+          "prompt"
+        ],
+        "title": "Generate object composite from prompt request",
+        "type": "object"
+      },
+      "GenerateObjectCompositeResponseV3": {
+        "properties": {
+          "contentClass": {
+            "$ref": "#/components/schemas/ContentClassV3"
+          },
+          "outputs": {
+            "description": "Each image ID.",
+            "items": {
+              "$ref": "#/components/schemas/OutputImageV3"
+            },
+            "minItems": 1,
+            "title": "The list of images",
+            "type": "array"
+          },
+          "size": {
+            "$ref": "#/components/schemas/Size",
+            "description": "When you provide size as input, this value is the same.",
+            "title": "The actual size used for the output"
+          }
+        },
+        "required": [
+          "size",
+          "outputs"
+        ],
+        "title": "Generate object composite from prompt response",
+        "type": "object"
+      },
+      "GenerateSimilarImagesRequestV3": {
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/BaseInputImageV3",
+            "description": "Firefly will create similar variations. You can either use a url or an <code>uploadID</code> as the source for the image. Firefly only allows these listed domains as input URL in the request: <ul> <li><code>amazonaws.com</code></li> <li><code>windows.net</code></li> <li><code>dropboxusercontent.com</code></li> </ul>",
+            "title": "The reference image"
+          },
+          "numVariations": {
+            "description": "Generate this number of variations. <code>numVariations</code> defaults to the number of seed images, or to 1 if you do not specify seeds.",
+            "maximum": 4,
+            "minimum": 1,
+            "title": "The number of variations",
+            "type": "integer"
+          },
+          "seeds": {
+            "description": "Array of seed image IDs. These reference images help ensure consistent image generation across multiple API calls. If specified alongside with <code>numVariations</code>, the number of seeds must equal to <code>numVariations</code>.",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "The seed image for each variation",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Size"
+              }
+            ],
+            "default": {
+              "height": 2048,
+              "width": 2048
+            },
+            "description": "The desired width and height for the final image in pixels. The supported sizes for the output images are: <ul> <li>Square (1:1) - width 2048px, height 2048px </li> <li>Square (1:1) - width 1024px, height 1024px </li> <li>Landscape (4:3)  - width 2304px, height 1792px </li> <li>Portrait (3:4)  - width 1792px, height 2304px</li> <li>Widescreen (16:9) - width 2688px, height 1536px </li> <li>(7:4)  - width 1344px, height 768px </li> <li>(9:7) - width 1152px, height 896px </li> <li>(7:9) - width 896px, height 1152px</li> </ul>",
+            "title": "The size"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Generating similar images from a reference image",
+        "type": "object"
+      },
+      "GenerateSimilarImagesResponseV3": {
+        "properties": {
+          "outputs": {
+            "description": "Each image ID.",
+            "items": {
+              "$ref": "#/components/schemas/OutputImageV3"
+            },
+            "minItems": 1,
+            "title": "The list of images",
+            "type": "array"
+          },
+          "size": {
+            "$ref": "#/components/schemas/Size",
+            "description": "When you provide size as input, this value is the same.",
+            "title": "The actual size used for the output"
+          }
+        },
+        "required": [
+          "size",
+          "outputs"
+        ],
+        "title": "Generating similar images response",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InputImageV3": {
+        "properties": {
+          "mask": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicBinaryInputV3"
+              }
+            ],
+            "deprecated": true,
+            "description": "This is a deprecated property. Use <code>mask</code> instead.",
+            "title": "Deprecated mask image"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PublicBinaryInputV3",
+            "description": "Source image that Firefly expands, fills or uses to generate similar images",
+            "title": "Source image"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "InputImageV3",
+        "type": "object"
+      },
+      "InputMaskV3": {
+        "properties": {
+          "invert": {
+            "description": "Invert mask is an optional boolen property, use <code>true</code> if you want take an image mask, invert it and apply it.",
+            "title": "Invert mask",
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PublicBinaryInputV3"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "InputMaskV3",
+        "type": "object"
+      },
+      "OutputImageV3": {
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/PublicBinaryOutputV3"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seed",
+          "image"
+        ],
+        "title": "OutputImageV3",
+        "type": "object"
+      },
+      "Placement": {
+        "properties": {
+          "alignment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlacementAlignment"
+              }
+            ],
+            "description": "Specify horizontal and vertical alignment. Possible values for horizontal=(center|left|right) and for vertical=(center|top|bottom).",
+            "title": "Alignment"
+          },
+          "inset": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlacementInset"
+              }
+            ],
+            "description": "Margin values in target size",
+            "title": "Margin values in target size"
+          }
+        },
+        "title": "Placement",
+        "type": "object"
+      },
+      "PlacementAlignment": {
+        "properties": {
+          "horizontal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlignmentHorizontal"
+              }
+            ],
+            "default": "center"
+          },
+          "vertical": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlignmentVertical"
+              }
+            ],
+            "default": "center"
+          }
+        },
+        "title": "PlacementAlignment",
+        "type": "object"
+      },
+      "PlacementInset": {
+        "properties": {
+          "bottom": {
+            "description": "The space between bottom edge of the result image and bottom edge of the placed object image.",
+            "title": "Bottom Inset",
+            "type": "integer"
+          },
+          "left": {
+            "description": "The space between left edge of the result image and left edge of the placed object image.",
+            "title": "Left Inset",
+            "type": "integer"
+          },
+          "right": {
+            "description": "The space between right edge of the result image and right edge of the placed object image.",
+            "title": "Right Inset",
+            "type": "integer"
+          },
+          "top": {
+            "description": "The space between top edge of the result image and top edge of the placed object image.",
+            "title": "Top Inset",
+            "type": "integer"
+          }
+        },
+        "title": "PlacementInset",
+        "type": "object"
+      },
+      "PublicBinaryInputV3": {
+        "properties": {
+          "uploadId": {
+            "description": "This is the uploadId from storage API response.",
+            "format": "uuid4",
+            "title": "The upload ID",
+            "type": "string"
+          },
+          "url": {
+            "description": "Presigned URL of an uploaded file. You can either use a url or an <code>uploadID</code> as the source for the image. Firefly only allows these listed domains as input URL in the request: <ul> <li><code>amazonaws.com</code></li> <li><code>windows.net</code></li> <li><code>dropboxusercontent.com</code></li> </ul>",
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "The pre-signed URL",
+            "type": "string"
+          }
+        },
+        "title": "PublicBinaryInputV3",
+        "type": "object"
+      },
+      "PublicBinaryOutputV3": {
+        "properties": {
+          "url": {
+            "description": "This URL expires in one hour",
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "The pre-signed URL",
+            "type": "string"
+          }
+        },
+        "title": "PublicBinaryOutputV3",
+        "type": "object"
+      },
+      "Size": {
+        "properties": {
+          "height": {
+            "maximum": 4096,
+            "minimum": 1,
+            "title": "The height of the output image",
+            "type": "integer"
+          },
+          "width": {
+            "maximum": 4096,
+            "minimum": 1,
+            "title": "The width of the output image",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "title": "Size",
+        "type": "object"
+      },
+      "StructureImageReferenceV3": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/PublicBinaryInputV3"
+          }
+        },
+        "title": "StructureImageReferenceV3",
+        "type": "object"
+      },
+      "StructureReferenceV3": {
+        "properties": {
+          "imageReference": {
+            "$ref": "#/components/schemas/StructureImageReferenceV3"
+          },
+          "strength": {
+            "description": "Control how strictly Firefly adheres to the reference image when it generates the image variations. 0 means no adherence. 100 means full adherence.",
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Adherence Threshold",
+            "type": "integer"
+          }
+        },
+        "title": "StructureReferenceV3",
+        "type": "object"
+      },
+      "StylesImageReferenceV3": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/PublicBinaryInputV3"
+          }
+        },
+        "title": "StylesImageReferenceV3",
+        "type": "object"
+      },
+      "StylesV3": {
+        "properties": {
+          "imageReference": {
+            "$ref": "#/components/schemas/StylesImageReferenceV3"
+          },
+          "presets": {
+            "description": "You can specify an ID for a style of image to generate",
+            "items": {
+              "type": "string"
+            },
+            "title": "The style presets",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "strength": {
+            "description": "How strictly Firefly should adhere to the style you provide.",
+            "maximum": 100,
+            "title": "The strength of the style",
+            "type": "integer"
+          }
+        },
+        "title": "StylesV3",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "ValidationErrorMessage": {
+        "properties": {
+          "ctx": {
+            "title": "Ctx",
+            "type": "object"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Loc",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Msg",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationErrorMessage",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "AccessToken": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "X-Api-Key": {
+        "in": "header",
+        "name": "x-api-key",
+        "type": "apiKey"
+      }
+    }
+  }
+}
