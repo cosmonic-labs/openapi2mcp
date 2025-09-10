@@ -5,14 +5,25 @@ use crate::MCPServer;
 
 use crate::shell::run_command;
 
-const TEMPLATE_URL: &str = "https://github.com/cosmonic-labs/mcp-server-template-ts.git";
+const TEMPLATE_URL: &str = "https://github.com/controlmcp/mcp-server-template-ts.git";
 
-pub fn clone_template(output_dir: impl AsRef<Path>) {
+pub fn clone_template(
+    repo: Option<String>,
+    output_dir: impl AsRef<Path>,
+    runner: Option<&crate::shell::Runner>,
+) -> anyhow::Result<()> {
     let output_dir = output_dir.as_ref();
-    run_command(&format!(
-        "git clone {TEMPLATE_URL} {}",
-        output_dir.display()
-    ));
+    let repo = repo.unwrap_or_else(|| TEMPLATE_URL.to_string());
+    let _ = run_command(
+        "git",
+        &[
+            "clone".to_string(),
+            repo,
+            output_dir.to_string_lossy().to_string(),
+        ],
+        runner,
+    );
+    Ok(())
 }
 
 // TODO: handle this as string instead of file

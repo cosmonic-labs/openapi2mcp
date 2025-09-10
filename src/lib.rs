@@ -10,30 +10,53 @@ use openapiv3::OpenAPI;
 pub use crate::codegen_typescript::generate_typescript_code;
 pub use crate::mcp_server::MCPServer;
 
-pub fn generate(openapi_path: impl AsRef<Path>, generated_path: impl AsRef<Path>) {
+/// Generate MCP server code from an OpenAPI spec
+///
+/// ## Arguments
+/// - `openapi_path`: The path to the OpenAPI specification file.
+/// - `generated_path`: The path to the directory where template will be cloned and placed.
+/// - `tools_path`: The path to the directory where tool code will be placed. Usually the same as `generated_path`
+/// - `template_repository`: Optional override template repository URL.
+/// - `runner`: The command runner to use when executing in Wasm
+pub fn generate(
+    openapi_path: impl AsRef<Path>,
+    generated_path: impl AsRef<Path>,
+    tools_path: impl AsRef<Path>,
+    template_repository: Option<String>,
+    runner: Option<&crate::shell::Runner>,
+) -> anyhow::Result<()> {
+    log::info!(
+        "Generating MCP server from OpenAPI spec spec_path={spec_path}, template_path={template_path}",
+        spec_path = openapi_path.as_ref().to_string_lossy(),
+        template_path = generated_path.as_ref().to_string_lossy(),
+    );
+
     let openapi_path = openapi_path.as_ref();
     let generated_path = generated_path.as_ref();
-    let openapi = parse_openapi_spec_from_path(openapi_path).unwrap();
+    let openapi = parse_openapi_spec_from_path(openapi_path)?;
 
-    let mcp_server = MCPServer::from_openapi(openapi).unwrap();
+    let mcp_server = MCPServer::from_openapi(openapi)?;
 
     let _ = fs::remove_dir_all(&generated_path);
-    template::clone_template(&generated_path);
-    let tools_path = format!("{}/src/routes/v1/mcp/tools/", generated_path.display());
+    template::clone_template(template_repository, &generated_path, runner)?;
+    let tools_code_path = format!("{}/src/routes/v1/mcp/tools/", tools_path.as_ref().display());
     generate_typescript_code(&mcp_server, |file_code| {
         let file_path = format!(
-            "{tools_path}{}.ts",
+            "{tools_code_path}{}.ts",
             file_code.name.replace('/', " ").trim().replace(' ', "_")
         );
 
-        fs::create_dir_all(&tools_path).unwrap();
-        fs::write(file_path, file_code.code).unwrap();
-    });
+        fs::create_dir_all(&tools_path)?;
+        fs::write(file_path, file_code.code)?;
+        Ok(())
+    })?;
 
     // Remove placeholder file `/tools/echo.ts`
-    fs::remove_file(format!("{tools_path}echo.ts")).unwrap();
-    template::update_tools_index_ts(&mcp_server, &generated_path).unwrap();
-    template::update_constants_ts(&mcp_server, &generated_path).unwrap();
+    fs::remove_file(format!("{tools_code_path}echo.ts"))?;
+    template::update_tools_index_ts(&mcp_server, &tools_path)?;
+    template::update_constants_ts(&mcp_server, &tools_path)?;
+
+    Ok(())
 }
 
 pub fn parse_openapi_spec_from_path<P: AsRef<Path>>(path: P) -> anyhow::Result<OpenAPI> {

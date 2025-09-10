@@ -7,17 +7,19 @@ pub struct FileCode {
     pub code: String,
 }
 
-pub fn generate_typescript_code<F>(mcp_server: &MCPServer, file_code: F)
+pub fn generate_typescript_code<F>(mcp_server: &MCPServer, file_code: F) -> anyhow::Result<()>
 where
-    F: Fn(FileCode),
+    F: Fn(FileCode) -> anyhow::Result<()>,
 {
     for tool in &mcp_server.tools {
-        let code = tool_to_code(tool);
+        let code = tool_to_code(tool)?;
         file_code(FileCode {
             name: tool.name.clone(),
-            code: code.unwrap(),
-        });
+            code,
+        })?;
     }
+
+    Ok(())
 }
 
 fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {

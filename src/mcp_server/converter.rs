@@ -68,7 +68,7 @@ pub fn openapi_to_mcp_server(openapi: OpenAPI) -> anyhow::Result<MCPServer> {
     log::info!("Created {} MCP tools", tools.len());
 
     // TODO: handle multiple servers
-    assert!(openapi.servers.len() <= 1);
+    anyhow::ensure!(openapi.servers.len() <= 1);
     let base_url = openapi
         .servers
         .first()
