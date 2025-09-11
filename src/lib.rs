@@ -19,18 +19,19 @@ pub fn generate(openapi_path: impl AsRef<Path>, generated_path: impl AsRef<Path>
 
     let _ = fs::remove_dir_all(&generated_path);
     template::clone_template(&generated_path);
-    let tools_path = format!("{}src/routes/v1/mcp/tools/", generated_path.display());
+    let tools_path = format!("{}/src/routes/v1/mcp/tools/", generated_path.display());
     generate_typescript_code(&mcp_server, |file_code| {
         let file_path = format!(
             "{tools_path}{}.ts",
             file_code.name.replace('/', " ").trim().replace(' ', "_")
         );
 
-        fs::create_dir_all(&generated_path).unwrap();
+        fs::create_dir_all(&tools_path).unwrap();
         fs::write(file_path, file_code.code).unwrap();
     });
 
     template::update_tools_index_ts(&mcp_server, &generated_path).unwrap();
+    template::update_constants_ts(&mcp_server, &generated_path).unwrap();
 }
 
 pub fn parse_openapi_spec_from_path<P: AsRef<Path>>(path: P) -> anyhow::Result<OpenAPI> {

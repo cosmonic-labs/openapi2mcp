@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 
 use http::Method;
 use openapiv3::OpenAPI;
@@ -36,6 +39,12 @@ pub struct MCPToolProperty {
 #[derive(Debug, Clone)]
 pub struct PropertyId(String);
 
+impl Display for PropertyId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum MCPToolPropertyType {
     String,
@@ -50,6 +59,7 @@ pub struct Call {
     pub method: Method,
     pub headers: HashMap<String, ValueSource>,
     pub path: String,
+    pub path_params: HashMap<String, ValueSource>,
     pub query: HashMap<String, ValueSource>,
     pub body: Option<ValueSource>,
 }
@@ -61,13 +71,33 @@ pub enum ValueSource {
     // Auth
 }
 
+impl Display for ValueSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValueSource::Fixed(value) => write!(f, "{}", value),
+            ValueSource::Property(property) => write!(f, "{}", property),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value {
     String(String),
+    // TODO: should we have multiple number types?
     Number(f64),
     Boolean(bool),
     // Object(HashMap<String, Value>),
     // Array(Vec<Value>),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::String(value) => write!(f, "{}", value),
+            Value::Number(value) => write!(f, "{}", value),
+            Value::Boolean(value) => write!(f, "{}", value),
+        }
+    }
 }
 
 // struct AuthStuff {
@@ -82,16 +112,19 @@ impl MCPServer {
 
 impl PropertyId {
     pub fn from_header(header: &str) -> Self {
-        Self(format!("header-{}", header))
+        // Self(format!("header-{}", header))
+        Self(header.to_string())
     }
 
     pub fn from_query(query: &str) -> Self {
-        Self(format!("query-{}", query))
+        // Self(format!("query-{}", query))
+        Self(query.to_string())
     }
 
-    // pub fn from_path(path: &str) -> Self {
-    //     Self(format!("path-{}", path))
-    // }
+    pub fn from_path(path: &str) -> Self {
+        // Self(format!("path-{}", path))
+        Self(path.to_string())
+    }
 
     // pub fn from_cookie(cookie: &str) -> Self {
     //     Self(format!("cookie-{}", cookie))

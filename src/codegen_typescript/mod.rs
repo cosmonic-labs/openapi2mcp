@@ -1,5 +1,5 @@
 use crate::mcp_server::{MCPServer, MCPTool, MCPToolPropertyType};
-use std::fmt::Write;
+use std::{collections::HashSet, fmt::Write};
 
 #[derive(Debug, Clone)]
 pub struct FileCode {
@@ -12,7 +12,7 @@ where
     F: Fn(FileCode),
 {
     for tool in &mcp_server.tools {
-        let code = tool_to_code(mcp_server, tool);
+        let code = tool_to_code(tool);
         file_code(FileCode {
             name: tool.name.clone(),
             code: code.unwrap(),
@@ -20,7 +20,7 @@ where
     }
 }
 
-fn tool_to_code(server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String> {
+fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     let mut output = String::new();
 
     // Import statements
@@ -33,9 +33,12 @@ fn tool_to_code(server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String> {
         output,
         "import {{ CallToolResult }} from \"@modelcontextprotocol/sdk/types.js\";"
     )?;
+    writeln!(
+        output,
+        "import {{ httpClient }} from \"../../../../http_client.js\";"
+    )?;
 
     // Generate Zod schema from tool input schema
-    // let zod_schema = self.generate_zod_schema_from_tool(&tool)?;
     let zod_schema = generate_zod_schema_from_tool(&tool)?;
 
     // Generate setupTool function
@@ -47,29 +50,34 @@ fn tool_to_code(server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String> {
     writeln!(output, "    \"{}\",", tool.name)?;
     writeln!(output, "    \"{}\",", tool.description)?;
     writeln!(output, "    {},", zod_schema)?;
-    writeln!(output, "    async (args): Promise<CallToolResult> => {{")?;
+    // TODO: don't use any, declare real type
+    writeln!(
+        output,
+        "    async (args: any): Promise<CallToolResult> => {{"
+    )?;
 
     // Generate API call logic
     writeln!(output, "      try {{")?;
-
+    writeln!(output, "        const response = await httpClient.call({{")?;
+    writeln!(output, "          path: `/alerts/active/zone/{{zoneId}}`,")?;
+    writeln!(output, "          pathParams: {{")?;
+    for (key, value) in &tool.calls[0].path_params {
+        writeln!(output, "            \"{key}\": args.{value},")?;
+    }
+    writeln!(output, "          }},")?;
+    writeln!(output, "          method: 'GET',")?;
+    writeln!(output, "          headers: {{")?;
+    // TODO: remove this header
     writeln!(
         output,
-        "        const response = await fetch('{}{}', {{",
-        server.base_url, tool.calls[0].path
+        "            \"User-Agent\": \"Mozilla/5.0 (X11; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0\","
     )?;
-    writeln!(output, "            headers: {{",)?;
+    writeln!(output, "          }}")?;
+    writeln!(output, "        }})")?;
+    // TODO: don't use any, declare real type
     writeln!(
         output,
-        "              'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0',",
-    )?;
-    writeln!(output, "            }},",)?;
-    writeln!(output, "            method: '{}',", tool.calls[0].method)?; // TODO: handle multiple calls
-    writeln!(output, "        }}).then(response => response.text());",)?;
-    writeln!(output, "")?;
-
-    writeln!(
-        output,
-        "        const result = {{ success: true, message: \"API call would be made here\" }};",
+        "        .then((response: Response) => response.text());"
     )?;
     writeln!(output, "")?;
     writeln!(output, "        return {{")?;
@@ -109,7 +117,19 @@ fn tool_to_code(server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String> {
 
 fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
     let mut zod_fields = String::new();
+
+    let mut visited = HashSet::new();
     for property in &tool.properties {
+        let mut prefix = String::from("      ");
+        if visited.contains(&property.name) {
+            writeln!(
+                prefix,
+                "// TODO: the following property name already exists"
+            )?;
+            write!(prefix, "      // ")?;
+        }
+        visited.insert(property.name.clone());
+
         let mut zod_type = match property.type_ {
             MCPToolPropertyType::String => "z.string()",
             MCPToolPropertyType::Number => "z.number()",
@@ -122,7 +142,7 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
             zod_type = format!(
                 "{}.describe(\"{}\")",
                 zod_type,
-                description.replace('"', "\\\"")
+                description.replace('"', "\\\"").replace("\n", "\\n")
             );
         }
 
@@ -130,7 +150,7 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
             zod_type = format!("{}.optional()", zod_type);
         }
 
-        writeln!(zod_fields, "      {}: {},", property.name, zod_type)?;
+        writeln!(zod_fields, "{}\"{}\": {},", prefix, property.name, zod_type)?;
     }
 
     Ok(format!("{{\n{}    }}", zod_fields))
