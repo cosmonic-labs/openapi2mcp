@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use convert_case::Casing;
 use http::Method;
 use openapiv3::{OpenAPI, Parameter, PathItem, ReferenceOr};
 
@@ -84,7 +85,7 @@ pub fn openapi_to_mcp_server(openapi: OpenAPI) -> anyhow::Result<MCPServer> {
 
 fn operation_to_tool(
     method: Method,
-    file_path: &str,
+    path: &str,
     operation: &openapiv3::Operation,
     route_params: &[ReferenceOr<Parameter>],
     openapi: &OpenAPI,
@@ -92,19 +93,19 @@ fn operation_to_tool(
     let tool_name = format!(
         "{}_{}",
         method.to_string().to_lowercase(),
-        file_path
-            .trim_matches('/')
+        path.trim_matches('/')
             .replace(',', "_")
             .replace('/', "_")
             .replace('-', "_")
             .replace('{', "")
             .replace('}', "")
+            .to_case(convert_case::Case::Snake)
     );
 
     let description = operation
         .description
         .clone()
-        .unwrap_or_else(|| format!("{} {}", method, file_path));
+        .unwrap_or_else(|| format!("{} {}", method, path));
 
     let mut path_params = HashMap::new();
     let mut query = HashMap::new();
@@ -161,7 +162,7 @@ fn operation_to_tool(
     Ok(MCPTool {
         call: Call {
             method,
-            path: file_path.to_string(),
+            path: path.to_string(),
             path_params,
             headers,
             query,
