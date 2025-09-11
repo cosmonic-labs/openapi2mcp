@@ -47,8 +47,8 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         "export function setupTool<S extends UpstreamMCPServer>(server: S) {{"
     )?;
     writeln!(output, "  server.tool(")?;
-    writeln!(output, "    \"{}\",", tool.name)?;
-    writeln!(output, "    \"{}\",", tool.description)?;
+    writeln!(output, "    \"{}\",", comment(&tool.name))?;
+    writeln!(output, "    \"{}\",", comment(&tool.description))?;
     writeln!(output, "    {},", zod_schema)?;
     // TODO: don't use any, declare real type
     writeln!(
@@ -139,11 +139,7 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
 
         // Add description if present
         if let Some(description) = &property.description {
-            zod_type = format!(
-                "{}.describe(\"{}\")",
-                zod_type,
-                description.replace('"', "\\\"").replace("\n", "\\n")
-            );
+            zod_type = format!("{}.describe(\"{}\")", zod_type, comment(description));
         }
 
         if !property.required {
@@ -154,4 +150,8 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
     }
 
     Ok(format!("{{\n{}    }}", zod_fields))
+}
+
+fn comment(s: &str) -> String {
+    s.replace("\n", "\\n")
 }
