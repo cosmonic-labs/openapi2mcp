@@ -30,6 +30,8 @@ pub fn generate(openapi_path: impl AsRef<Path>, generated_path: impl AsRef<Path>
         fs::write(file_path, file_code.code).unwrap();
     });
 
+    // Remove placeholder file `/tools/echo.ts`
+    fs::remove_file(format!("{tools_path}echo.ts")).unwrap();
     template::update_tools_index_ts(&mcp_server, &generated_path).unwrap();
     template::update_constants_ts(&mcp_server, &generated_path).unwrap();
 }
