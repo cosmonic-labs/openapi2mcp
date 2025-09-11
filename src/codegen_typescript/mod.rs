@@ -46,14 +46,20 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         output,
         "export function setupTool<S extends UpstreamMCPServer>(server: S) {{"
     )?;
+    writeln!(output, "  const params = {zod_schema};")?;
+    writeln!(output, "  type ParamsType = {{")?;
+    writeln!(
+        output,
+        "    [K in keyof typeof params]: z.infer<typeof params[K]>"
+    )?;
+    writeln!(output, "  }};")?;
     writeln!(output, "  server.tool(")?;
     writeln!(output, "    \"{}\",", comment(&tool.name))?;
     writeln!(output, "    \"{}\",", comment(&tool.description))?;
-    writeln!(output, "    {},", zod_schema)?;
-    // TODO: don't use any, declare real type
+    writeln!(output, "    params,")?;
     writeln!(
         output,
-        "    async (args: any): Promise<CallToolResult> => {{"
+        "    async (args: ParamsType): Promise<CallToolResult> => {{"
     )?;
 
     // Generate API call logic
@@ -133,13 +139,13 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
 
     let mut visited = HashSet::new();
     for property in &tool.properties {
-        let mut prefix = String::from("      ");
+        let mut prefix = String::from("    ");
         if visited.contains(&property.name) {
             writeln!(
                 prefix,
                 "// TODO: the following property name already exists"
             )?;
-            write!(prefix, "      // ")?;
+            write!(prefix, "    // ")?;
         }
         visited.insert(property.name.clone());
 
@@ -162,7 +168,7 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
         writeln!(zod_fields, "{}\"{}\": {},", prefix, property.name, zod_type)?;
     }
 
-    Ok(format!("{{\n{}    }}", zod_fields))
+    Ok(format!("{{\n{}  }}", zod_fields))
 }
 
 fn comment(s: &str) -> String {
