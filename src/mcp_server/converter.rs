@@ -96,6 +96,7 @@ fn operation_to_tool(
             .trim_matches('/')
             .replace(',', "_")
             .replace('/', "_")
+            .replace('-', "_")
             .replace('{', "")
             .replace('}', "")
     );

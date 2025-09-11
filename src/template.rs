@@ -32,10 +32,9 @@ pub fn update_tools_index_ts(
 
     // Import all generated tools
     for tool in &server.tools {
-        let tool_module_name = tool.name.replace('-', "_");
         code.push_str(&format!(
             "import * as {} from \"./{}.js\";\n",
-            tool_module_name, tool_module_name
+            tool.name, tool.name
         ));
     }
 
@@ -43,8 +42,7 @@ pub fn update_tools_index_ts(
 
     // Call setupTool for each tool
     for tool in &server.tools {
-        let tool_module_name = tool.name.replace('-', "_");
-        code.push_str(&format!("  {}.setupTool(server);\n", tool_module_name));
+        code.push_str(&format!("  {}.setupTool(server);\n", tool.name));
     }
 
     code.push_str("}\n");
