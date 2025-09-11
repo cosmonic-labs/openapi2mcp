@@ -24,8 +24,7 @@ pub struct MCPTool {
     pub description: String,
     // pub required: bool,
     pub properties: Vec<MCPToolProperty>,
-    // TODO: change to singular
-    pub calls: Vec<Call>,
+    pub call: Call,
 }
 
 #[derive(Debug, Clone)]

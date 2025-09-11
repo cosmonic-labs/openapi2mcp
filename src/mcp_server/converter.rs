@@ -159,15 +159,14 @@ fn operation_to_tool(
     }
 
     Ok(MCPTool {
-        // TODO: allow multiple calls
-        calls: vec![Call {
+        call: Call {
             method,
             path: file_path.to_string(),
             path_params,
             headers,
             query,
             body: None,
-        }],
+        },
         properties,
         name: tool_name,
         description,

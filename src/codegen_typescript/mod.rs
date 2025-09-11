@@ -59,22 +59,35 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     // Generate API call logic
     writeln!(output, "      try {{")?;
     writeln!(output, "        const response = await httpClient.call({{")?;
-    writeln!(output, "          path: `/alerts/active/zone/{{zoneId}}`,")?;
-    writeln!(output, "          pathParams: {{")?;
-    for (key, value) in &tool.calls[0].path_params {
-        writeln!(output, "            \"{key}\": args.{value},")?;
+
+    writeln!(output, "          path: `{}`,", tool.call.path)?;
+    writeln!(output, "          method: '{}',", tool.call.method)?;
+
+    if !tool.call.path_params.is_empty() {
+        writeln!(output, "          pathParams: {{")?;
+        for (key, value) in &tool.call.path_params {
+            writeln!(output, "            \"{key}\": args.{value},")?;
+        }
+        writeln!(output, "          }},")?;
     }
-    writeln!(output, "          }},")?;
-    writeln!(output, "          method: 'GET',")?;
-    writeln!(output, "          headers: {{")?;
-    // TODO: remove this header
-    writeln!(
-        output,
-        "            \"User-Agent\": \"Mozilla/5.0 (X11; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0\","
-    )?;
-    writeln!(output, "          }}")?;
+
+    if !tool.call.query.is_empty() {
+        writeln!(output, "          query: {{")?;
+        for (key, value) in &tool.call.query {
+            writeln!(output, "            \"{key}\": args.{value},")?;
+        }
+        writeln!(output, "          }},")?;
+    }
+
+    if !tool.call.headers.is_empty() {
+        writeln!(output, "          headers: {{")?;
+        for (key, value) in &tool.call.headers {
+            writeln!(output, "            \"{key}\": args.{value},")?;
+        }
+        writeln!(output, "          }},")?;
+    }
     writeln!(output, "        }})")?;
-    // TODO: don't use any, declare real type
+
     writeln!(
         output,
         "        .then((response: Response) => response.text());"
