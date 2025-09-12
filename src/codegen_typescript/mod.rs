@@ -49,12 +49,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         "export function setupTool<S extends UpstreamMCPServer>(server: S) {{"
     )?;
     writeln!(output, "  const params = {zod_schema};")?;
-    writeln!(output, "  type ParamsType = {{")?;
-    writeln!(
-        output,
-        "    [K in keyof typeof params]: z.infer<typeof params[K]>"
-    )?;
-    writeln!(output, "  }};")?;
+    writeln!(output, "  type ParamsType = z.infer<z.ZodObject<typeof params>>;")?;
     writeln!(output, "  server.tool(")?;
     writeln!(output, "    \"{}\",", comment(&tool.name))?;
     writeln!(output, "    \"{}\",", comment(&tool.description))?;
