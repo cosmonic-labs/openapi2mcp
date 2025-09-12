@@ -61,7 +61,9 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     writeln!(output, "    params,")?;
     writeln!(
         output,
-        "    async (args: ParamsType): Promise<CallToolResult> => {{"
+        // TODO: real type should work but doesn't
+        // "    async (args: ParamsType): Promise<CallToolResult> => {{"
+        "    async (args: any): Promise<CallToolResult> => {{"
     )?;
 
     // Generate API call logic
