@@ -3,7 +3,7 @@ mod tests {
     fn test_generate(name: &str) {
         let openapi_path = format!("./tests/{name}/input.yaml");
         let generated_path = format!("./tests/{name}/generated/");
-        openapi2mcp::generate(&openapi_path, &generated_path);
+        openapi2mcp::generate(&openapi_path, &generated_path, &generated_path, None, None).unwrap();
     }
 
     #[test]

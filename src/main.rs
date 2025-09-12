@@ -13,5 +13,6 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    openapi2mcp::generate(&cli.input, &cli.output);
+    openapi2mcp::generate(&cli.input, &cli.output, &cli.output, None, None)
+        .expect("failed to generate MCP");
 }
