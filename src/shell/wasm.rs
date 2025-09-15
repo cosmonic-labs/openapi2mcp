@@ -35,7 +35,7 @@ impl Guest for Plugin {
             contact: "Cosmonic Team <team@cosmonic.com>".to_string(),
             url: "https://github.com/cosmonic-labs/openapi2mcp".to_string(),
             license: "Apache-2.0".to_string(),
-            version: "0.1.0".to_string(),
+            version: "0.2.0".to_string(),
             command: Some(Command {
                 id: "openapi2mcp".into(),
                 name: "openapi2mcp".into(),
