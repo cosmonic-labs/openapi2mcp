@@ -19,9 +19,6 @@ serde_yaml = "0.9.34"
 [target.'cfg(all(target_os = "wasi", target_env = "p2"))'.dependencies]
 wit-bindgen = "0.45"
 
-[target.'cfg(not(all(target_os = "wasi", target_env = "p2")))'.dependencies]
-execute = "0.2.13"
-
 [profile.release]
 opt-level = "z"
 lto = true

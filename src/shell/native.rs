@@ -1,10 +1,5 @@
 pub fn run_command(command: &str, args: &[String]) -> anyhow::Result<()> {
-    use execute::Execute;
-
-    let mut cmd = execute::shell(command);
-    cmd.args(args);
-
-    let output = cmd.execute_output()?;
+    let output = std::process::Command::new(command).args(args).output()?;
     println!("running command: {command}");
     println!("status: {}", output.status);
     println!("stdout: {}", String::from_utf8(output.stdout)?);
