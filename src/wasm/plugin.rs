@@ -6,7 +6,6 @@ use crate::{
         },
         wasi::{
             self,
-            logging::logging::{Level, log},
         },
         wasmcloud::wash::types::CommandArgument,
     },
@@ -145,11 +144,7 @@ impl WashPlugin for Plugin {
 
         let read_dir = descriptor.read_directory().unwrap();
         while let Ok(Some(entry)) = read_dir.read_directory_entry() {
-            log(
-                Level::Debug,
-                "",
-                &format!("Found directory entry: {:?}", entry),
-            );
+            println!("Found directory entry: {:?}", entry);
         }
 
         // Use the consolidated wasm module for WASI functionality
