@@ -4,9 +4,7 @@ use crate::{
         exports::wasmcloud::wash::plugin::{
             Command, Guest as WashPlugin, HookType, Metadata, Runner,
         },
-        wasi::{
-            self,
-        },
+        wasi::{self},
         wasmcloud::wash::types::CommandArgument,
     },
 };

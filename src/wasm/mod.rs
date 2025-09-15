@@ -164,7 +164,10 @@ impl FileBackend for WasiFileBackend {
             // Try to create the directory, ignore if it already exists
             if let Err(e) = root_dir.create_directory_at(&current_path) {
                 if e != bindings::wasi::filesystem::types::ErrorCode::Exist {
-                    eprintln!("[wasi-fs] Failed to create directory {}: {}", current_path, e);
+                    eprintln!(
+                        "[wasi-fs] Failed to create directory {}: {}",
+                        current_path, e
+                    );
                     return Err(crate::Error::Validation(format!(
                         "Failed to create directory {}: {}",
                         current_path, e
@@ -249,7 +252,11 @@ impl FileBackend for WasiFileBackend {
             entries.push(entry.name);
         }
 
-        println!("[wasi-fs] Found {} entries in directory {}", entries.len(), path);
+        println!(
+            "[wasi-fs] Found {} entries in directory {}",
+            entries.len(),
+            path
+        );
         Ok(entries)
     }
 
@@ -372,7 +379,10 @@ impl FileBackend for WasiFileBackend {
         println!("[wasi-fs] Copying file from {} to {}", src, dest);
         let content = self.read_file(src)?;
         self.write_file(dest, &content)?;
-        println!("[wasi-fs] Successfully copied file from {} to {}", src, dest);
+        println!(
+            "[wasi-fs] Successfully copied file from {} to {}",
+            src, dest
+        );
         Ok(())
     }
 }
