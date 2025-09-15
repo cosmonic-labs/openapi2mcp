@@ -288,7 +288,7 @@ fn test_version_output() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("0.1.0")); // Version from Cargo.toml
+    assert!(stdout.contains("0.2.0")); // Version from Cargo.toml
 }
 
 #[test]
