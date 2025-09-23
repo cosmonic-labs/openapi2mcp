@@ -77,7 +77,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.query.is_empty() {
         writeln!(output, "          query: {{")?;
         for (key, value) in &tool.call.query {
-            writeln!(output, "            \"{key}\": args.{value},")?;
+            writeln!(output, "            \"{key}\": args[\"{value}\"] ?? \"\",")?;
         }
         writeln!(output, "          }},")?;
     }
@@ -85,7 +85,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.headers.is_empty() {
         writeln!(output, "          headers: {{")?;
         for (key, value) in &tool.call.headers {
-            writeln!(output, "            \"{key}\": args.{value},")?;
+            writeln!(output, "            \"{key}\": args[\"{value}\"] ?? \"\",")?;
         }
         writeln!(output, "          }},")?;
     }
