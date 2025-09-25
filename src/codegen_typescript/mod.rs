@@ -168,6 +168,13 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
     Ok(format!("{{\n{}  }}", zod_fields))
 }
 
+/// Escapes special characters in strings for safe use in TypeScript string literals.
+/// Handles backslashes, newlines, carriage returns, tabs, and both single/double quotes.
 fn comment(s: &str) -> String {
-    s.replace("\n", "\\n")
+    s.replace("\\", "\\\\")  // Escape backslashes first to avoid double-escaping
+        .replace("\n", "\\n")   // Escape newlines
+        .replace("\r", "")      // Remove carriage returns
+        .replace("\t", "\\t")   // Escape tabs
+        .replace("\"", "\\\"")  // Escape double quotes
+        .replace("'", "\\'")    // Escape single quotes
 }
