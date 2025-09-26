@@ -1,4 +1,6 @@
-use crate::mcp_server::{MCPServer, MCPTool, MCPToolPropertyType};
+use crate::mcp_server::{
+    MCPServer, MCPTool, MCPToolProperty, MCPToolPropertyRequired, MCPToolPropertyType, ValueSource,
+};
 use std::{collections::HashSet, fmt::Write};
 
 #[derive(Debug, Clone)]
@@ -49,7 +51,10 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         "export function setupTool<S extends UpstreamMCPServer>(server: S) {{"
     )?;
     writeln!(output, "  const params = {zod_schema};")?;
-    writeln!(output, "  type ParamsType = z.infer<z.ZodObject<typeof params>>;")?;
+    writeln!(
+        output,
+        "  type ParamsType = z.infer<z.ZodObject<typeof params>>;"
+    )?;
     writeln!(output, "  server.tool(")?;
     writeln!(output, "    \"{}\",", comment(&tool.name))?;
     writeln!(output, "    \"{}\",", comment(&tool.description))?;
@@ -66,10 +71,17 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     writeln!(output, "          path: `{}`,", tool.call.path)?;
     writeln!(output, "          method: '{}',", tool.call.method)?;
 
+    fn display_value(value: &ValueSource) -> String {
+        match value {
+            ValueSource::Fixed(value) => format!("{value}"),
+            ValueSource::Property(property) => format!("args.{property}"),
+        }
+    }
+
     if !tool.call.path_params.is_empty() {
         writeln!(output, "          pathParams: {{")?;
         for (key, value) in &tool.call.path_params {
-            writeln!(output, "            \"{key}\": args.{value},")?;
+            writeln!(output, "            \"{key}\": {},", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -77,7 +89,11 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.query.is_empty() {
         writeln!(output, "          query: {{")?;
         for (key, value) in &tool.call.query {
-            writeln!(output, "            \"{key}\": args.{value},")?;
+            writeln!(
+                output,
+                "            \"{key}\": {} ?? \"\",",
+                display_value(value)
+            )?;
         }
         writeln!(output, "          }},")?;
     }
@@ -85,10 +101,19 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.headers.is_empty() {
         writeln!(output, "          headers: {{")?;
         for (key, value) in &tool.call.headers {
-            writeln!(output, "            \"{key}\": args.{value},")?;
+            writeln!(output, "            \"{key}\": {},", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
+
+    if let Some(body) = &tool.call.body {
+        writeln!(
+            output,
+            "          body: JSON.stringify({}),",
+            display_value(body)
+        )?;
+    }
+
     writeln!(output, "        }})")?;
 
     writeln!(
@@ -146,28 +171,65 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
         }
         visited.insert(property.name.clone());
 
-        let mut zod_type = match property.type_ {
-            MCPToolPropertyType::String => "z.string()",
-            MCPToolPropertyType::Number => "z.number()",
-            MCPToolPropertyType::Boolean => "z.boolean()",
-        }
-        .to_string();
+        let zod_type = mcp_tool_property_to_zod_type(property, 2)?;
 
-        // Add description if present
-        if let Some(description) = &property.description {
-            zod_type = format!("{}.describe(\"{}\")", zod_type, comment(description));
-        }
-
-        if !property.required {
-            zod_type = format!("{}.optional()", zod_type);
-        }
-
-        writeln!(zod_fields, "{}\"{}\": {},", prefix, property.name, zod_type)?;
+        writeln!(zod_fields, "{}\"{}\": {}", prefix, property.name, zod_type)?;
     }
 
     Ok(format!("{{\n{}  }}", zod_fields))
 }
 
+fn mcp_tool_property_to_zod_type(
+    property: &MCPToolProperty,
+    indentation: usize,
+) -> anyhow::Result<String> {
+    let ind_str = " ".repeat(indentation * 2);
+    let mut output = String::new();
+    match &property.type_ {
+        MCPToolPropertyType::String => write!(output, "z.string()")?,
+        MCPToolPropertyType::Number => write!(output, "z.number()")?,
+        MCPToolPropertyType::Boolean => write!(output, "z.boolean()")?,
+        MCPToolPropertyType::Array(property) => {
+            writeln!(output, "z.array(")?;
+            write!(
+                output,
+                "{ind_str}  {}",
+                mcp_tool_property_to_zod_type(property, indentation + 1)?
+            )?;
+            write!(output, "{ind_str})")?;
+        }
+        MCPToolPropertyType::Object(hash_map) => {
+            writeln!(output, "z.object({{")?;
+            for (name, type_) in hash_map.iter() {
+                write!(
+                    output,
+                    "{ind_str}  \"{}\": {}",
+                    name,
+                    mcp_tool_property_to_zod_type(type_, indentation + 1)?
+                )?;
+            }
+            write!(output, "{ind_str}}})")?;
+        }
+    };
+
+    match &property.required {
+        MCPToolPropertyRequired::Default(_) | MCPToolPropertyRequired::Optional => {
+            write!(output, ".optional()")?;
+        }
+        MCPToolPropertyRequired::Required => {}
+    }
+
+    if let Some(description) = &property.description {
+        write!(output, ".describe(\"{}\")", comment(description))?;
+    }
+
+    writeln!(output, ",")?;
+
+    Ok(output)
+}
+
 fn comment(s: &str) -> String {
-    s.replace("\n", "\\n")
+    s.replace("\r\n", "\n")
+        .replace("\n", "\\n")
+        .replace("\"", "\\\"")
 }

@@ -31,8 +31,15 @@ pub struct MCPTool {
 pub struct MCPToolProperty {
     pub name: String,
     pub description: Option<String>,
-    pub required: bool,
+    pub required: MCPToolPropertyRequired,
     pub type_: MCPToolPropertyType,
+}
+
+#[derive(Debug, Clone)]
+pub enum MCPToolPropertyRequired {
+    Optional,
+    Required,
+    Default(serde_json::Value), // TODO: use self::Value?
 }
 
 #[derive(Debug, Clone)]
@@ -49,8 +56,8 @@ pub enum MCPToolPropertyType {
     String,
     Number,
     Boolean,
-    // Object,
-    // Array,
+    Array(Box<MCPToolProperty>),
+    Object(HashMap<String, MCPToolProperty>),
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +99,7 @@ pub enum Value {
 impl Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::String(value) => write!(f, "{}", value),
+            Value::String(value) => write!(f, "\"{}\"", value),
             Value::Number(value) => write!(f, "{}", value),
             Value::Boolean(value) => write!(f, "{}", value),
         }
@@ -128,4 +135,9 @@ impl PropertyId {
     // pub fn from_cookie(cookie: &str) -> Self {
     //     Self(format!("cookie-{}", cookie))
     // }
+
+    pub fn from_body(body: &str) -> Self {
+        // Self(format!("path-{}", path))
+        Self(body.to_string())
+    }
 }
