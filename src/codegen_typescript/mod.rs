@@ -91,7 +91,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         for (key, value) in &tool.call.query {
             writeln!(
                 output,
-                "            \"{key}\": {} ?? \"\",",
+                "            \"{key}\": args[\"{}\"] ?? \"\",",
                 display_value(value)
             )?;
         }
@@ -101,7 +101,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.headers.is_empty() {
         writeln!(output, "          headers: {{")?;
         for (key, value) in &tool.call.headers {
-            writeln!(output, "            \"{key}\": {},", display_value(value))?;
+            writeln!(output, "            \"{key}\": args[\"{}\"] ?? \"\",", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -228,8 +228,12 @@ fn mcp_tool_property_to_zod_type(
     Ok(output)
 }
 
+/// Escapes special characters in strings for safe use in TypeScript string literals.
+/// Handles backslashes, newlines, carriage returns, tabs, and both single/double quotes.
 fn comment(s: &str) -> String {
     s.replace("\r\n", "\n")
         .replace("\n", "\\n")
         .replace("\"", "\\\"")
+        .replace("\"", "\\\"")  // Escape double quotes
+        .replace("'", "\\'")    // Escape single quotes
 }
