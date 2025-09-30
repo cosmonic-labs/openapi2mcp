@@ -9,17 +9,6 @@ mod bindings {
 use bindings::exports::wasmcloud::wash::plugin::Guest;
 pub use bindings::wasmcloud::wash::types::*;
 
-pub(crate) fn run_command(
-    command: &str,
-    args: &[String],
-    runner: Option<&Runner>,
-) -> anyhow::Result<(String, String)> {
-    runner
-        .expect("gotta have the runner")
-        .host_exec(command, args)
-        .map_err(|e| anyhow::anyhow!(e))
-}
-
 const FS_ROOT: &str = ".local/share/wash/plugins/fs/openapi2mcp";
 
 pub(crate) struct Plugin;
@@ -52,15 +41,12 @@ impl Guest for Plugin {
                         },
                     ),
                     (
-                        "template-repo".to_string(),
+                        "project-path".to_string(),
                         CommandArgument {
-                            name: "template-repo".to_string(),
-                            description: "URL of the template repository".to_string(),
-                            env: Some("TEMPLATE_REPO".to_string()),
-                            default: Some(
-                                "https://github.com/controlmcp/mcp-server-template-ts.git"
-                                    .to_string(),
-                            ),
+                            name: "project-path".to_string(),
+                            description: "Path to the project root directory for generation".to_string(),
+                            env: Some("PROJECT_PATH".to_string()),
+                            default: Some(".".to_string()),
                             value: None,
                         },
                     ),
@@ -116,12 +102,13 @@ impl Guest for Plugin {
             .and_then(|(_, arg)| arg.value.as_ref())
             .ok_or_else(|| "No home directory specified".to_string())?;
 
-        let template_repo = cmd
+        // Find the "project-path" flag value
+        let project_path = cmd
             .flags
             .iter()
-            .find(|(name, _)| name == "template-repo")
-            .cloned()
-            .and_then(|(_, arg)| arg.value);
+            .find(|(name, _)| name == "project-path")
+            .and_then(|(_, arg)| arg.value.as_ref())
+            .ok_or_else(|| "No project path specified".to_string())?;
 
         let (_stdout, _stderr) = runner.host_exec(
             "cp",
@@ -139,20 +126,9 @@ impl Guest for Plugin {
         // Use the consolidated wasm module for WASI functionality
         crate::generate(
             format!("{path}/spec.yaml"),
-            format!("{home_dir}/{FS_ROOT}/generated"),
-            format!("{path}/generated"),
-            template_repo,
-            Some(&runner),
+            project_path,
         )
         .map_err(|e| format!("failed to generate MCP: {e}"))?;
-
-        let (_stdout, _stderr) = runner.host_exec(
-            "mv",
-            &[
-                format!("{home_dir}/{FS_ROOT}/generated"),
-                "./generated".to_string(),
-            ],
-        )?;
 
         Ok("MCP server generated successfully".to_string())
     }

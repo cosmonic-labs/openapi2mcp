@@ -1,0 +1,39 @@
+name: Build Wasm component
+
+on: 
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      - name: Setup wash CLI
+        uses: wasmcloud/setup-wash-action@v1.0.0-rc.2
+
+      - name: Setup cargo-auditable
+        uses: wasmcloud/actions/setup-wash-cargo-auditable@v0.1.0
+
+      - name: Build Wasm component
+        id: build
+        uses: wasmCloud/actions/wash-build@v0.1.0
+
+      - name: Publish Wasm component  
+        uses: wasmcloud/actions/wash-oci-publish@v0.1.0
+        with:
+          component_path: ${{ steps.build.outputs.component_path }}
+          attestation: true
+          image_tags: ${{ github.ref_name }}

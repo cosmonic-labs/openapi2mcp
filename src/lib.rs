@@ -14,47 +14,52 @@ pub use crate::mcp_server::MCPServer;
 ///
 /// ## Arguments
 /// - `openapi_path`: The path to the OpenAPI specification file.
-/// - `generated_path`: The path to the directory where template will be cloned and placed.
-/// - `tools_path`: The path to the directory where tool code will be placed. Usually the same as `generated_path`
-/// - `template_repository`: Optional override template repository URL.
-/// - `runner`: The command runner to use when executing in Wasm
+/// - `project_path`: The path to the project root directory where code will be generated.
 pub fn generate(
     openapi_path: impl AsRef<Path>,
-    generated_path: impl AsRef<Path>,
-    tools_path: impl AsRef<Path>,
-    template_repository: Option<String>,
-    runner: Option<&crate::shell::Runner>,
+    project_path: impl AsRef<Path>,
 ) -> anyhow::Result<()> {
+    let openapi_path = openapi_path.as_ref();
+    let project_path = project_path.as_ref();
+
     log::info!(
-        "Generating MCP server from OpenAPI spec spec_path={spec_path}, template_path={template_path}",
-        spec_path = openapi_path.as_ref().to_string_lossy(),
-        template_path = generated_path.as_ref().to_string_lossy(),
+        "Generating MCP server from OpenAPI spec spec_path={spec_path}, project_path={project_path}",
+        spec_path = openapi_path.to_string_lossy(),
+        project_path = project_path.to_string_lossy(),
     );
 
-    let openapi_path = openapi_path.as_ref();
-    let generated_path = generated_path.as_ref();
-    let openapi = parse_openapi_spec_from_path(openapi_path)?;
+    // Validate that the project structure exists
+    let tools_index_path = project_path.join("src/routes/v1/mcp/tools/index.ts");
+    if !tools_index_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Project structure validation failed: {} does not exist.\n\
+             Please ensure you have the base MCP server project structure set up before running code generation.",
+            tools_index_path.display()
+        ));
+    }
 
+    let openapi = parse_openapi_spec_from_path(openapi_path)?;
     let mcp_server = MCPServer::from_openapi(openapi)?;
 
-    let _ = fs::remove_dir_all(&generated_path);
-    template::clone_template(template_repository, &generated_path, runner)?;
-    let tools_code_path = format!("{}/src/routes/v1/mcp/tools/", tools_path.as_ref().display());
+    let tools_code_path = project_path.join("src/routes/v1/mcp/tools/");
     generate_typescript_code(&mcp_server, |file_code| {
-        let file_path = format!(
-            "{tools_code_path}{}.ts",
+        let file_path = tools_code_path.join(format!(
+            "{}.ts",
             file_code.name.replace('/', " ").trim().replace(' ', "_")
-        );
+        ));
 
-        fs::create_dir_all(&tools_path)?;
         fs::write(file_path, file_code.code)?;
         Ok(())
     })?;
 
-    // Remove placeholder file `/tools/echo.ts`
-    fs::remove_file(format!("{tools_code_path}echo.ts"))?;
-    template::update_tools_index_ts(&mcp_server, &tools_path)?;
-    template::update_constants_ts(&mcp_server, &tools_path)?;
+    // Remove placeholder file `/tools/echo.ts` if it exists
+    let echo_path = tools_code_path.join("echo.ts");
+    if echo_path.exists() {
+        fs::remove_file(echo_path)?;
+    }
+
+    template::update_tools_index_ts(&mcp_server, &project_path)?;
+    template::update_constants_ts(&mcp_server, &project_path)?;
 
     Ok(())
 }
