@@ -102,6 +102,7 @@ impl Guest for Plugin {
             .ok_or_else(|| "No project path specified".to_string())?;
 
         // Get the preopened sandbox directory - this is where we can write files in Wasm
+        // TODO remove, when we have wash volumeMounts, this is just getting the home dir path for the plugin
         let preopens = bindings::wasi::filesystem::preopens::get_directories();
         let Some((_descriptor, sandbox_path)) = preopens.get(0) else {
             return Err("No sandbox filesystem available".to_string());
@@ -141,14 +142,21 @@ impl Guest for Plugin {
         )
         .map_err(|e| format!("failed to generate MCP: {e}"))?;
 
-        // Copy generated src directory from sandbox to target project path via host
+        // Copy generated src directory contents from sandbox to target project path via host
+        // Using trailing slash to copy contents, not the directory itself
         let (_stdout, _stderr) = runner.host_exec(
             "cp",
             &[
                 "-Rp".to_string(),
-                format!("{home_dir}/{FS_ROOT}/generated/src"),
-                project_path.to_string(),
+                format!("{home_dir}/{FS_ROOT}/generated/src/."),
+                format!("{}/src/", project_path),
             ],
+        )?;
+
+        // Cleanup the sandbox directory via host
+        runner.host_exec(
+            "rm",
+            &["-rf".to_string(), format!("{home_dir}/{FS_ROOT}/generated")],
         )?;
 
         Ok("MCP server generated successfully".to_string())

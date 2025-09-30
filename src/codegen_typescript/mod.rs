@@ -74,14 +74,14 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     fn display_value(value: &ValueSource) -> String {
         match value {
             ValueSource::Fixed(value) => format!("{value}"),
-            ValueSource::Property(property) => format!("args.{property}"),
+            ValueSource::Property(property) => format!("args[\"{property}\"]"),
         }
     }
 
     if !tool.call.path_params.is_empty() {
         writeln!(output, "          pathParams: {{")?;
         for (key, value) in &tool.call.path_params {
-            writeln!(output, "            \"{key}\": {},", display_value(value))?;
+            writeln!(output, "            \"{key}\": {} ?? \"\",", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -101,7 +101,8 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.headers.is_empty() {
         writeln!(output, "          headers: {{")?;
         for (key, value) in &tool.call.headers {
-            writeln!(output, " \"{key}\": {},", display_value(value))?;
+            // TODO: handle non-nullable header values
+            writeln!(output, " \"{key}\": {}?.toString() ?? \"\",", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -232,6 +233,4 @@ fn comment(s: &str) -> String {
     s.replace("\r\n", "\n")
         .replace("\n", "\\n")
         .replace("\"", "\\\"")
-        .replace("\"", "\\\"")
-        .replace("'", "\\'")
 }

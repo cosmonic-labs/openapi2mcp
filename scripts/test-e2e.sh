@@ -3,6 +3,8 @@ set -euo pipefail
 
 # E2E test script for openapi2mcp
 # Generates MCP servers from OpenAPI specs and validates they build
+# NOTE: This script requires `wash` CLI to be installed and configured
+# NOTE: Assumes you have already built the openapi2mcp plugin to wasm
 
 # Cleanup function
 cleanup() {
