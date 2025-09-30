@@ -7,34 +7,44 @@ on:
     branches: [main]
 
 jobs:
-    unit:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout repository
-          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-        - name: cargo test
-          run: cargo test
+      - name: cargo test
+        run: cargo test
 
-    e2e:
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-            pull-requests: write
+  e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-            - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-              with:
-                node-version: 22.x
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
 
-            - name: Setup wash CLI
-              uses: wasmcloud/setup-wash-action@v1.0.0-rc.2
+      # - name: Setup wash CLI
+      #   uses: wasmcloud/setup-wash-action@v1.0.0-rc.2
 
-            - name: Build component
-              uses: wasmcloud/actions/wash-build@v0.1.0
+      - name: Add WASM target
+        run: rustup target add wasm32-wasip2
 
-            - name: Generate MCP from OpenAPI spec
-              run: ./scripts/test-e2e.sh
+      - name: Install wash using taiki-e/cache-cargo-install-action
+        uses: taiki-e/cache-cargo-install-action@v1
+        with:
+          tool: wash
+          git: "https://github.com/wasmCloud/wash"
+          rev: "f02200055d115b0866e52b1770ed4627a61db527"
+
+      - name: Build component
+        uses: wasmcloud/actions/wash-build@v0.1.0
+
+      - name: Generate MCP from OpenAPI spec
+        run: ./scripts/test-e2e.sh

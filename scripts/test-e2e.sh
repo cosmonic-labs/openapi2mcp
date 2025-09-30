@@ -7,7 +7,7 @@ set -euo pipefail
 # Cleanup function
 cleanup() {
     echo "Cleaning up..."
-    rm -rf template
+    wash plugin uninstall openapi2mcp || true
     rm -rf ./tests/*/generated
 }
 
@@ -61,7 +61,6 @@ for dir in ./tests/*/ ; do
 
     # Generate MCP server code
     echo "Generating MCP server from $spec_file..."
-    echo "Running: wash openapi2mcp \"$spec_file\" --project-path \"$dir/generated\""
     wash new --git https://github.com/controlmcp/mcp-server-template-ts.git "$dir/generated"
     wash openapi2mcp "$spec_file" --project-path "$dir/generated"
     if [ $? -ne 0 ]; then

@@ -71,10 +71,17 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     writeln!(output, "          path: `{}`,", tool.call.path)?;
     writeln!(output, "          method: '{}',", tool.call.method)?;
 
+    fn display_value(value: &ValueSource) -> String {
+        match value {
+            ValueSource::Fixed(value) => format!("{value}"),
+            ValueSource::Property(property) => format!("args.{property}"),
+        }
+    }
+
     if !tool.call.path_params.is_empty() {
         writeln!(output, "          pathParams: {{")?;
         for (key, value) in &tool.call.path_params {
-            writeln!(output, "            \"{key}\": args.{value},")?;
+            writeln!(output, "            \"{key}\": {},", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -103,7 +110,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         writeln!(
             output,
             "          body: JSON.stringify({}),",
-            body
+            display_value(body)
         )?;
     }
 

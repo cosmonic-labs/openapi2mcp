@@ -24,22 +24,12 @@ impl Guest for Plugin {
             contact: "Cosmonic Team <team@cosmonic.com>".to_string(),
             url: "https://github.com/cosmonic-labs/openapi2mcp".to_string(),
             license: "Apache-2.0".to_string(),
-            version: "0.2.0".to_string(),
+            version: "0.5.0".to_string(),
             command: Some(Command {
                 id: "openapi2mcp".into(),
                 name: "openapi2mcp".into(),
                 description: "Generate MCP server tools from OpenAPI endpoints".into(),
                 flags: vec![
-                    (
-                        "server-name".to_string(),
-                        CommandArgument {
-                            name: "server-name".to_string(),
-                            description: "Name of the server for the generated MCP".to_string(),
-                            env: Some("SERVER_NAME".to_string()),
-                            default: Some("my_server".to_string()),
-                            value: None,
-                        },
-                    ),
                     (
                         "project-path".to_string(),
                         CommandArgument {
@@ -69,7 +59,7 @@ impl Guest for Plugin {
                     default: None,
                     value: None,
                 }],
-                usage: vec!["wash openapi2mcp <INPUT> --output <OUTPUT_DIR> [OPTIONS]".to_string()],
+                usage: vec!["wash openapi2mcp <INPUT> --project-path <OUTPUT_DIR>".to_string()],
             }),
             sub_commands: vec![],
             hooks: vec![HookType::BeforeDev],
