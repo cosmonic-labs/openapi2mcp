@@ -111,7 +111,15 @@ impl Guest for Plugin {
             .and_then(|(_, arg)| arg.value.as_ref())
             .ok_or_else(|| "No project path specified".to_string())?;
 
-        let (_stdout, _stderr) = runner.host_exec(
+        // Get the preopened sandbox directory - this is where we can write files in Wasm
+        let preopens = bindings::wasi::filesystem::preopens::get_directories();
+        let Some((_descriptor, sandbox_path)) = preopens.get(0) else {
+            return Err("No sandbox filesystem available".to_string());
+        };
+
+        // The sandbox path is typically mounted at {home_dir}/{FS_ROOT}
+        // Copy input file to sandbox via host
+        runner.host_exec(
             "cp",
             &[
                 input_file.to_string(),
@@ -119,14 +127,39 @@ impl Guest for Plugin {
             ],
         )?;
 
-        let preopens = bindings::wasi::filesystem::preopens::get_directories();
-        let Some((_descriptor, path)) = preopens.get(0) else {
-            return Err("No sandbox filesystem available".to_string());
-        };
+        // Create the directory structure for generation in sandbox via host
+        runner.host_exec(
+            "mkdir",
+            &[
+                "-p".to_string(),
+                format!("{home_dir}/{FS_ROOT}/generated/src/routes/v1/mcp/tools"),
+            ],
+        )?;
 
-        // Use the consolidated wasm module for WASI functionality
-        crate::generate(format!("{path}/spec.yaml"), project_path)
-            .map_err(|e| format!("failed to generate MCP: {e}"))?;
+        // Create placeholder index.ts in sandbox via host
+        runner.host_exec(
+            "touch",
+            &[format!(
+                "{home_dir}/{FS_ROOT}/generated/src/routes/v1/mcp/tools/index.ts"
+            )],
+        )?;
+
+        // Generate into the sandbox (WASM can write here)
+        crate::generate(
+            format!("{sandbox_path}/spec.yaml"),
+            format!("{sandbox_path}/generated"),
+        )
+        .map_err(|e| format!("failed to generate MCP: {e}"))?;
+
+        // Copy generated src directory from sandbox to target project path via host
+        let (_stdout, _stderr) = runner.host_exec(
+            "cp",
+            &[
+                "-Rp".to_string(),
+                format!("{home_dir}/{FS_ROOT}/generated/src"),
+                project_path.to_string(),
+            ],
+        )?;
 
         Ok("MCP server generated successfully".to_string())
     }

@@ -30,16 +30,6 @@ pub fn generate(
         project_path = project_path.to_string_lossy(),
     );
 
-    // Validate that the project structure exists
-    let tools_index_path = project_path.join("src/routes/v1/mcp/tools/index.ts");
-    if !tools_index_path.exists() {
-        return Err(anyhow::anyhow!(
-            "Project structure validation failed: {} does not exist.\n\
-             Please ensure you have the base MCP server project structure set up before running code generation.",
-            tools_index_path.display()
-        ));
-    }
-
     let openapi = parse_openapi_spec_from_path(openapi_path)?;
     let mcp_server = MCPServer::from_openapi(openapi)?;
 
