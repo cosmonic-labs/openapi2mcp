@@ -1,7 +1,9 @@
 pub mod codegen_typescript;
 pub mod mcp_server;
-mod shell;
 pub mod template;
+
+#[cfg(all(target_os = "wasi", target_env = "p2"))]
+pub mod wash_plugin;
 
 use std::{fs, path::Path};
 

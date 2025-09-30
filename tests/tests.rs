@@ -24,14 +24,16 @@ mod tests {
         // Create the index.ts file that the generator expects
         fs::write(
             format!("{tools_dir}index.ts"),
-            "// Placeholder for testing\n"
-        ).unwrap();
+            "// Placeholder for testing\n",
+        )
+        .unwrap();
 
         // Create the constants.ts file that the generator expects
         fs::write(
             format!("{project_path}src/constants.ts"),
-            "// Placeholder for testing\n"
-        ).unwrap();
+            "// Placeholder for testing\n",
+        )
+        .unwrap();
 
         openapi2mcp::generate(&openapi_path, &project_path).unwrap();
     }

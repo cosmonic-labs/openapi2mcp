@@ -44,7 +44,8 @@ impl Guest for Plugin {
                         "project-path".to_string(),
                         CommandArgument {
                             name: "project-path".to_string(),
-                            description: "Path to the project root directory for generation".to_string(),
+                            description: "Path to the project root directory for generation"
+                                .to_string(),
                             env: Some("PROJECT_PATH".to_string()),
                             default: Some(".".to_string()),
                             value: None,
@@ -124,11 +125,8 @@ impl Guest for Plugin {
         };
 
         // Use the consolidated wasm module for WASI functionality
-        crate::generate(
-            format!("{path}/spec.yaml"),
-            project_path,
-        )
-        .map_err(|e| format!("failed to generate MCP: {e}"))?;
+        crate::generate(format!("{path}/spec.yaml"), project_path)
+            .map_err(|e| format!("failed to generate MCP: {e}"))?;
 
         Ok("MCP server generated successfully".to_string())
     }
