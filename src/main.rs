@@ -7,12 +7,11 @@ struct Cli {
     #[arg(short, long)]
     input: PathBuf,
 
-    #[arg(short, long)]
-    output: PathBuf,
+    #[arg(long, default_value = ".")]
+    project_path: PathBuf,
 }
 
 fn main() {
     let cli = Cli::parse();
-    openapi2mcp::generate(&cli.input, &cli.output, &cli.output, None, None)
-        .expect("failed to generate MCP");
+    openapi2mcp::generate(&cli.input, &cli.project_path).expect("failed to generate MCP");
 }

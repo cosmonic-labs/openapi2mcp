@@ -9,17 +9,6 @@ mod bindings {
 use bindings::exports::wasmcloud::wash::plugin::Guest;
 pub use bindings::wasmcloud::wash::types::*;
 
-pub(crate) fn run_command(
-    command: &str,
-    args: &[String],
-    runner: Option<&Runner>,
-) -> anyhow::Result<(String, String)> {
-    runner
-        .expect("gotta have the runner")
-        .host_exec(command, args)
-        .map_err(|e| anyhow::anyhow!(e))
-}
-
 const FS_ROOT: &str = ".local/share/wash/plugins/fs/openapi2mcp";
 
 pub(crate) struct Plugin;
@@ -35,32 +24,20 @@ impl Guest for Plugin {
             contact: "Cosmonic Team <team@cosmonic.com>".to_string(),
             url: "https://github.com/cosmonic-labs/openapi2mcp".to_string(),
             license: "Apache-2.0".to_string(),
-            version: "0.2.0".to_string(),
+            version: "0.5.0".to_string(),
             command: Some(Command {
                 id: "openapi2mcp".into(),
                 name: "openapi2mcp".into(),
                 description: "Generate MCP server tools from OpenAPI endpoints".into(),
                 flags: vec![
                     (
-                        "server-name".to_string(),
+                        "project-path".to_string(),
                         CommandArgument {
-                            name: "server-name".to_string(),
-                            description: "Name of the server for the generated MCP".to_string(),
-                            env: Some("SERVER_NAME".to_string()),
-                            default: Some("my_server".to_string()),
-                            value: None,
-                        },
-                    ),
-                    (
-                        "template-repo".to_string(),
-                        CommandArgument {
-                            name: "template-repo".to_string(),
-                            description: "URL of the template repository".to_string(),
-                            env: Some("TEMPLATE_REPO".to_string()),
-                            default: Some(
-                                "https://github.com/controlmcp/mcp-server-template-ts.git"
-                                    .to_string(),
-                            ),
+                            name: "project-path".to_string(),
+                            description: "Path to the project root directory for generation"
+                                .to_string(),
+                            env: Some("PROJECT_PATH".to_string()),
+                            default: Some(".".to_string()),
                             value: None,
                         },
                     ),
@@ -82,7 +59,7 @@ impl Guest for Plugin {
                     default: None,
                     value: None,
                 }],
-                usage: vec!["wash openapi2mcp <INPUT> --output <OUTPUT_DIR> [OPTIONS]".to_string()],
+                usage: vec!["wash openapi2mcp <INPUT> --project-path <OUTPUT_DIR>".to_string()],
             }),
             sub_commands: vec![],
             hooks: vec![HookType::BeforeDev],
@@ -116,14 +93,24 @@ impl Guest for Plugin {
             .and_then(|(_, arg)| arg.value.as_ref())
             .ok_or_else(|| "No home directory specified".to_string())?;
 
-        let template_repo = cmd
+        // Find the "project-path" flag value
+        let project_path = cmd
             .flags
             .iter()
-            .find(|(name, _)| name == "template-repo")
-            .cloned()
-            .and_then(|(_, arg)| arg.value);
+            .find(|(name, _)| name == "project-path")
+            .and_then(|(_, arg)| arg.value.as_ref())
+            .ok_or_else(|| "No project path specified".to_string())?;
 
-        let (_stdout, _stderr) = runner.host_exec(
+        // Get the preopened sandbox directory - this is where we can write files in Wasm
+        // TODO remove, when we have wash volumeMounts, this is just getting the home dir path for the plugin
+        let preopens = bindings::wasi::filesystem::preopens::get_directories();
+        let Some((_descriptor, sandbox_path)) = preopens.get(0) else {
+            return Err("No sandbox filesystem available".to_string());
+        };
+
+        // The sandbox path is typically mounted at {home_dir}/{FS_ROOT}
+        // Copy input file to sandbox via host
+        runner.host_exec(
             "cp",
             &[
                 input_file.to_string(),
@@ -131,27 +118,45 @@ impl Guest for Plugin {
             ],
         )?;
 
-        let preopens = bindings::wasi::filesystem::preopens::get_directories();
-        let Some((_descriptor, path)) = preopens.get(0) else {
-            return Err("No sandbox filesystem available".to_string());
-        };
+        // Create the directory structure for generation in sandbox via host
+        runner.host_exec(
+            "mkdir",
+            &[
+                "-p".to_string(),
+                format!("{home_dir}/{FS_ROOT}/generated/src/routes/v1/mcp/tools"),
+            ],
+        )?;
 
-        // Use the consolidated wasm module for WASI functionality
+        // Create placeholder index.ts in sandbox via host
+        runner.host_exec(
+            "touch",
+            &[format!(
+                "{home_dir}/{FS_ROOT}/generated/src/routes/v1/mcp/tools/index.ts"
+            )],
+        )?;
+
+        // Generate into the sandbox (WASM can write here)
         crate::generate(
-            format!("{path}/spec.yaml"),
-            format!("{home_dir}/{FS_ROOT}/generated"),
-            format!("{path}/generated"),
-            template_repo,
-            Some(&runner),
+            format!("{sandbox_path}/spec.yaml"),
+            format!("{sandbox_path}/generated"),
         )
         .map_err(|e| format!("failed to generate MCP: {e}"))?;
 
+        // Copy generated src directory contents from sandbox to target project path via host
+        // Using trailing slash to copy contents, not the directory itself
         let (_stdout, _stderr) = runner.host_exec(
-            "mv",
+            "cp",
             &[
-                format!("{home_dir}/{FS_ROOT}/generated"),
-                "./generated".to_string(),
+                "-Rp".to_string(),
+                format!("{home_dir}/{FS_ROOT}/generated/src/."),
+                format!("{}/src/", project_path),
             ],
+        )?;
+
+        // Cleanup the sandbox directory via host
+        runner.host_exec(
+            "rm",
+            &["-rf".to_string(), format!("{home_dir}/{FS_ROOT}/generated")],
         )?;
 
         Ok("MCP server generated successfully".to_string())

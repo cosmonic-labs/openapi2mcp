@@ -1,9 +1,0 @@
-pub fn run_command(command: &str, args: &[String]) -> anyhow::Result<()> {
-    let output = std::process::Command::new(command).args(args).output()?;
-    println!("running command: {command}");
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8(output.stdout)?);
-    println!("stderr: {}", String::from_utf8(output.stderr)?);
-    println!("========================");
-    Ok(())
-}
