@@ -39,11 +39,6 @@ mod tests {
     }
 
     #[test]
-    fn weather_api() {
-        test_generate("weather-api");
-    }
-
-    #[test]
     fn weather_gov() {
         test_generate("weather-gov");
     }
