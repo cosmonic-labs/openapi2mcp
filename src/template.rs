@@ -16,7 +16,7 @@ pub fn update_tools_index_ts(
 
     let mut code = String::new();
     // TODO: use std::fmt::Writeln
-    code.push_str("import { McpServer as UpstreamMCPServer } from \"@modelcontextprotocol/sdk/server/mcp.js\";\n\n");
+    code.push_str("import { MCPServer } from \"../server.js\";\n\n");
 
     // Import all generated tools
     for tool in &server.tools {
@@ -26,7 +26,7 @@ pub fn update_tools_index_ts(
         ));
     }
 
-    code.push_str("\nexport function setupAllTools<S extends UpstreamMCPServer>(server: S) {\n");
+    code.push_str("\nexport function setupAllTools(server: MCPServer) {\n");
 
     // Call setupTool for each tool
     for tool in &server.tools {

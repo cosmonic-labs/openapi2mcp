@@ -31,7 +31,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     writeln!(output, "import z from \"zod\";")?;
     writeln!(
         output,
-        "import {{ McpServer as UpstreamMCPServer }} from \"@modelcontextprotocol/sdk/server/mcp.js\";"
+        "import {{ MCPServer }} from \"../server.js\";"
     )?;
     writeln!(
         output,
@@ -48,7 +48,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     // Generate setupTool function
     writeln!(
         output,
-        "export function setupTool<S extends UpstreamMCPServer>(server: S) {{"
+        "export function setupTool(server: MCPServer) {{"
     )?;
     writeln!(output, "  const params = {zod_schema};")?;
     writeln!(
