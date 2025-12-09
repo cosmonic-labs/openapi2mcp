@@ -51,7 +51,20 @@ pub fn update_constants_ts(
 
     let mut code = String::new();
 
-    writeln!(code, "export const BASE_URL = \"{}\";", server.base_url)?;
+    writeln!(code, "export const API_BASE_URL = \"{}\";", server.base_url)?;
+
+    if let Some(oauth2_info) = &server.oauth2_info {
+        writeln!(
+            code,
+            "export const OAUTH_AUTHORIZATION_URL = \"{}\";",
+            oauth2_info.authorization_url
+        )?;
+        writeln!(
+            code,
+            "export const OAUTH_TOKEN_URL = \"{}\";",
+            oauth2_info.token_url
+        )?;
+    }
 
     std::fs::write(tools_index_path, &code)?;
     Ok(())

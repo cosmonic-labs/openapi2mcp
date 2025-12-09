@@ -4,7 +4,7 @@ use std::{
 };
 
 use http::Method;
-use openapiv3::OpenAPI;
+use openapiv3::{AuthorizationCodeOAuth2Flow, OpenAPI};
 
 mod converter;
 
@@ -15,7 +15,7 @@ pub struct MCPServer {
     pub version: String,
     pub description: Option<String>,
     pub base_url: String,
-    // pub auth_stuff: AuthStuff,
+    pub oauth2_info: Option<AuthorizationCodeOAuth2Flow>,
 }
 
 #[derive(Debug, Clone)]
@@ -105,10 +105,6 @@ impl Display for Value {
         }
     }
 }
-
-// struct AuthStuff {
-//     ...
-// }
 
 impl MCPServer {
     pub fn from_openapi(openapi: OpenAPI) -> anyhow::Result<Self> {
