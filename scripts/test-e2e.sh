@@ -63,7 +63,7 @@ for dir in ./tests/*/ ; do
 
     # Generate MCP server code
     echo "Generating MCP server from $spec_file..."
-    wash new --git https://github.com/controlmcp/mcp-server-template-ts.git "$dir/generated"
+    wash new --git https://github.com/cosmonic-labs/mcp-server-template-ts.git "$dir/generated"
     wash openapi2mcp "$spec_file" --project-path "$dir/generated"
     if [ $? -ne 0 ]; then
         echo "Error: Failed to generate MCP server from $spec_file"
