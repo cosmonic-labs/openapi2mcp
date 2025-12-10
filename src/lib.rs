@@ -61,9 +61,11 @@ pub fn generate(
         auth: mcp_server.oauth2_info.is_some(),
     };
     for path_file in get_all_files_in_dir_recursive(project_path)? {
-        let contents = fs::read_to_string(&path_file)?;
-        let output = template_features::handle_template_features(&features, &contents);
-        fs::write(&path_file, output)?;
+        // skip if file is not readable as text
+        if let Ok(contents) = fs::read_to_string(&path_file) {
+            let output = template_features::handle_template_features(&features, &contents);
+            fs::write(&path_file, output)?;
+        }
     }
 
     Ok(())
