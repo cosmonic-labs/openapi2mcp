@@ -109,6 +109,17 @@ impl Guest for Plugin {
         };
 
         // The sandbox path is typically mounted at {home_dir}/{FS_ROOT}
+        let sandbox_generated = format!("{home_dir}/{FS_ROOT}/generated");
+
+        // Cleanup any previous sandbox state
+        let _ = runner.host_exec("rm", &["-rf".to_string(), sandbox_generated.clone()]);
+
+        // Copy the entire project into the sandbox so we can read and modify template files
+        runner.host_exec(
+            "cp",
+            &["-Rp".to_string(), project_path.clone(), sandbox_generated.clone()],
+        )?;
+
         // Copy input file to sandbox via host
         runner.host_exec(
             "cp",
@@ -118,45 +129,37 @@ impl Guest for Plugin {
             ],
         )?;
 
-        // Create the directory structure for generation in sandbox via host
+        // Ensure the tools directory exists in the sandbox
         runner.host_exec(
             "mkdir",
             &[
                 "-p".to_string(),
-                format!("{home_dir}/{FS_ROOT}/generated/src/routes/v1/mcp/tools"),
+                format!("{sandbox_generated}/src/routes/v1/mcp/tools"),
             ],
         )?;
 
-        // Create placeholder index.ts in sandbox via host
-        runner.host_exec(
-            "touch",
-            &[format!(
-                "{home_dir}/{FS_ROOT}/generated/src/routes/v1/mcp/tools/index.ts"
-            )],
-        )?;
-
-        // Generate into the sandbox (WASM can write here)
+        // Generate into the sandbox (WASM can read and modify template files here)
         crate::generate(
             format!("{sandbox_path}/spec.yaml"),
             format!("{sandbox_path}/generated"),
         )
         .map_err(|e| format!("failed to generate MCP: {e}"))?;
 
-        // Copy generated src directory contents from sandbox to target project path via host
-        // Using trailing slash to copy contents, not the directory itself
-        let (_stdout, _stderr) = runner.host_exec(
+        // Copy modified project back from sandbox to target project path
+        // Using rsync-like copy to update files in place
+        runner.host_exec(
             "cp",
             &[
                 "-Rp".to_string(),
-                format!("{home_dir}/{FS_ROOT}/generated/src/."),
-                format!("{}/src/", project_path),
+                format!("{sandbox_generated}/."),
+                format!("{project_path}/"),
             ],
         )?;
 
         // Cleanup the sandbox directory via host
         runner.host_exec(
             "rm",
-            &["-rf".to_string(), format!("{home_dir}/{FS_ROOT}/generated")],
+            &["-rf".to_string(), sandbox_generated],
         )?;
 
         Ok("MCP server generated successfully".to_string())
