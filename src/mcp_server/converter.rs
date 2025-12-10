@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use convert_case::Casing;
 use http::Method;
-use openapiv3::{OpenAPI, Parameter, PathItem, ReferenceOr, RequestBody, Schema};
+use openapiv3::{
+    OAuth2Flows, OpenAPI, Parameter, PathItem, ReferenceOr, RequestBody, Schema, SecurityScheme,
+};
 
 use crate::mcp_server::{
     Call, MCPServer, MCPTool, MCPToolProperty, MCPToolPropertyRequired, MCPToolPropertyType,
@@ -10,6 +12,10 @@ use crate::mcp_server::{
 };
 
 pub fn openapi_to_mcp_server(openapi: OpenAPI) -> anyhow::Result<MCPServer> {
+    let oauth2_info = get_oauth2_info(&openapi)
+        .and_then(|info| info.authorization_code.as_ref())
+        .cloned();
+
     let mut tools = Vec::new();
     for (path, path_item_ref) in &openapi.paths.paths {
         let path_item = resolve_path(&openapi, path_item_ref).unwrap();
@@ -81,6 +87,7 @@ pub fn openapi_to_mcp_server(openapi: OpenAPI) -> anyhow::Result<MCPServer> {
         description: openapi.info.description,
         tools,
         base_url,
+        oauth2_info,
     })
 }
 
@@ -274,6 +281,27 @@ fn operation_to_tool(
     })
 }
 
+fn get_oauth2_info(openapi: &OpenAPI) -> Option<&OAuth2Flows> {
+    get_security_schemes(openapi)
+        .iter()
+        .find_map(|security_scheme| match security_scheme {
+            SecurityScheme::OAuth2 { flows, .. } => Some(flows),
+            _ => None,
+        })
+}
+
+fn get_security_schemes(openapi: &OpenAPI) -> Vec<&SecurityScheme> {
+    let components = openapi.components.as_ref();
+    if let Some(components) = components {
+        return components
+            .security_schemes
+            .iter()
+            .filter_map(|(_, scheme_ref)| resolve_security_scheme(openapi, scheme_ref))
+            .collect();
+    }
+    Vec::new()
+}
+
 fn resolve_parameter<'a>(
     openapi: &'a OpenAPI,
     param_ref: &'a ReferenceOr<Parameter>,
@@ -325,6 +353,24 @@ fn resolve_schema<'a>(
             let ref_path = reference.split("/").last().unwrap();
             let path = openapi.components.as_ref()?.schemas.get(ref_path)?;
             resolve_schema(openapi, path)
+        }
+        ReferenceOr::Item(schema) => Some(schema),
+    }
+}
+
+fn resolve_security_scheme<'a>(
+    openapi: &'a OpenAPI,
+    schema_ref: &'a ReferenceOr<SecurityScheme>,
+) -> Option<&'a SecurityScheme> {
+    match schema_ref {
+        ReferenceOr::Reference { reference } => {
+            let ref_path = reference.split("/").last().unwrap();
+            let path = openapi
+                .components
+                .as_ref()?
+                .security_schemes
+                .get(ref_path)?;
+            resolve_security_scheme(openapi, path)
         }
         ReferenceOr::Item(schema) => Some(schema),
     }

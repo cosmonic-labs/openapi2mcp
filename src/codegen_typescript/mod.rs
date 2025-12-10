@@ -14,7 +14,7 @@ where
     F: Fn(FileCode) -> anyhow::Result<()>,
 {
     for tool in &mcp_server.tools {
-        let code = tool_to_code(tool)?;
+        let code = tool_to_code(mcp_server, tool)?;
         file_code(FileCode {
             name: tool.name.clone(),
             code,
@@ -24,18 +24,19 @@ where
     Ok(())
 }
 
-fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
+fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String> {
     let mut output = String::new();
 
     // Import statements
     writeln!(output, "import z from \"zod\";")?;
+    writeln!(output, "import {{ MCPServer }} from \"../server.js\";")?;
     writeln!(
         output,
-        "import {{ MCPServer }} from \"../server.js\";"
+        "import {{ CallToolResult, ServerRequest, ServerNotification }} from \"@modelcontextprotocol/sdk/types.js\";"
     )?;
     writeln!(
         output,
-        "import {{ CallToolResult }} from \"@modelcontextprotocol/sdk/types.js\";"
+        "import {{ RequestHandlerExtra }} from \"@modelcontextprotocol/sdk/shared/protocol.js\";"
     )?;
     writeln!(
         output,
@@ -46,10 +47,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     let zod_schema = generate_zod_schema_from_tool(&tool)?;
 
     // Generate setupTool function
-    writeln!(
-        output,
-        "export function setupTool(server: MCPServer) {{"
-    )?;
+    writeln!(output, "export function setupTool(server: MCPServer) {{")?;
     writeln!(output, "  const params = {zod_schema};")?;
     writeln!(
         output,
@@ -61,7 +59,7 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     writeln!(output, "    params,")?;
     writeln!(
         output,
-        "    async (args: ParamsType): Promise<CallToolResult> => {{"
+        "    async (args: ParamsType, context: RequestHandlerExtra<ServerRequest, ServerNotification>): Promise<CallToolResult> => {{"
     )?;
 
     // Generate API call logic
@@ -70,6 +68,13 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
 
     writeln!(output, "          path: `{}`,", tool.call.path)?;
     writeln!(output, "          method: '{}',", tool.call.method)?;
+
+    if let Some(_oauth2_info) = &mcp_server.oauth2_info {
+        writeln!(
+            output,
+            "          authorizationHeader: context.requestInfo?.headers[\"authorization\"]?.toString(),"
+        )?;
+    }
 
     fn display_value(value: &ValueSource) -> String {
         match value {
@@ -81,7 +86,11 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
     if !tool.call.path_params.is_empty() {
         writeln!(output, "          pathParams: {{")?;
         for (key, value) in &tool.call.path_params {
-            writeln!(output, "            \"{key}\": {} ?? \"\",", display_value(value))?;
+            writeln!(
+                output,
+                "            \"{key}\": {} ?? \"\",",
+                display_value(value)
+            )?;
         }
         writeln!(output, "          }},")?;
     }
@@ -102,7 +111,11 @@ fn tool_to_code(tool: &MCPTool) -> anyhow::Result<String> {
         writeln!(output, "          headers: {{")?;
         for (key, value) in &tool.call.headers {
             // TODO: handle non-nullable header values
-            writeln!(output, " \"{key}\": {}?.toString() ?? \"\",", display_value(value))?;
+            writeln!(
+                output,
+                " \"{key}\": {}?.toString() ?? \"\",",
+                display_value(value)
+            )?;
         }
         writeln!(output, "          }},")?;
     }
