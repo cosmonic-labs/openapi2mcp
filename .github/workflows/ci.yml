@@ -33,7 +33,7 @@ jobs:
       - name: Setup wash CLI
         uses: wasmcloud/setup-wash-action@v1.0.0-rc.3
         with:
-          wash-version: wash-v1.0.0-beta.10
+          wash-version: wash-v2.0.0-rc.4
 
       - name: Build component
         uses: wasmcloud/actions/wash-build@v0.2.0
