@@ -17,9 +17,8 @@ wash plugin install ghcr.io/cosmonic-labs/plugins/openapi2mcp:0.5.0
 Start with an MCP project, using our template to get started:
 
 ```shell
-wash new --git https://github.com/cosmonic-labs/mcp-server-template-ts.git "my-mcp-server"
+wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git "my-mcp-server"
 ```
-
 Generate MCP tools into the server project from an OpenAPI specification:
 
 ```shell
@@ -32,7 +31,7 @@ wash openapi2mcp [path/to/open/yaml/or/json] --project-path [path/to/generated/m
 
 ```shell
 # cargo run -- -i [path/to/open/yaml/or/json] --project-path [path/to/generated/mcp/server]
-wash new --git https://github.com/cosmonic-labs/mcp-server-template-ts.git "tests/petstore/generated"
+wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git "tests/petstore/generated"
 cargo run -- -i tests/petstore/input.json --project-path tests/petstore/generated
 ```
 
@@ -54,6 +53,6 @@ Run as `wash` plugin:
 
 ```shell
 # wash openapi2mcp [path/to/open/yaml/or/json] --project-path [path/to/generated/mcp/server]
-wash new --git https://github.com/cosmonic-labs/mcp-server-template-ts.git tests/petstore/generated
+wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git tests/petstore/generated
 wash openapi2mcp tests/petstore/input.json --project-path tests/petstore/generated
 ```
