@@ -1,6 +1,6 @@
 name: Build Wasm component
 
-on: 
+on:
   release:
     types: [published]
 
@@ -13,12 +13,14 @@ jobs:
       packages: write
       attestations: write
       id-token: write
-    
+
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Setup wash CLI
         uses: wasmcloud/setup-wash-action@v1.0.0-rc.3
+        with:
+          wash-version: wash-v2.0.0-rc.5
 
       - name: Setup cargo-auditable
         uses: wasmcloud/actions/setup-wash-cargo-auditable@v0.2.0
@@ -27,7 +29,7 @@ jobs:
         id: build
         uses: wasmCloud/actions/wash-build@v0.2.0
 
-      - name: Publish Wasm component  
+      - name: Publish Wasm component
         uses: wasmcloud/actions/wash-oci-publish@v0.2.0
         with:
           component_path: ${{ steps.build.outputs.component_path }}
