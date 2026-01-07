@@ -11,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/wasmcloud/wash/refs/heads/main/inst
 Install the latest release as a wash plugin:
 
 ```shell
-wash plugin install ghcr.io/cosmonic-labs/plugins/openapi2mcp:v0.5.0
+wash plugin install ghcr.io/cosmonic-labs/openapi2mcp:v0.5.0
 ```
 
 Start with an MCP project, using our template to get started:
