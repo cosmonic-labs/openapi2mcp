@@ -1,5 +1,6 @@
 use crate::mcp_server::{
-    MCPServer, MCPTool, MCPToolProperty, MCPToolPropertyRequired, MCPToolPropertyType, ValueSource,
+    MCPServer, MCPTool, MCPToolProperty, MCPToolPropertyRequired, MCPToolPropertyType, Value,
+    ValueSource,
 };
 use std::{collections::HashSet, fmt::Write};
 
@@ -29,7 +30,7 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
 
     // Import statements
     writeln!(output, "import z from \"zod\";")?;
-    writeln!(output, "import {{ MCPServer }} from \"../server.js\";")?;
+    writeln!(output, "import {{ MCPServer }} from \"../server\";")?;
     writeln!(
         output,
         "import {{ CallToolResult, ServerRequest, ServerNotification }} from \"@modelcontextprotocol/sdk/types.js\";"
@@ -40,7 +41,7 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
     )?;
     writeln!(
         output,
-        "import {{ httpClient }} from \"../../../../http_client.js\";"
+        "import {{ httpClient }} from \"../../../../http_client\";"
     )?;
 
     // Generate Zod schema from tool input schema
@@ -78,19 +79,18 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
 
     fn display_value(value: &ValueSource) -> String {
         match value {
-            ValueSource::Fixed(value) => format!("{value}"),
-            ValueSource::Property(property) => format!("args[\"{property}\"]"),
+            ValueSource::Fixed(value) => match value {
+                Value::Boolean(_) | Value::Number(_) => format!("{value}.toString()"),
+                Value::String(value) => format!("\"{value}\""),
+            },
+            ValueSource::Property(property) => format!("args.{property}?.toString()"),
         }
     }
 
     if !tool.call.path_params.is_empty() {
         writeln!(output, "          pathParams: {{")?;
         for (key, value) in &tool.call.path_params {
-            writeln!(
-                output,
-                "            \"{key}\": {} ?? \"\",",
-                display_value(value)
-            )?;
+            writeln!(output, "            \"{key}\": {},", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -98,11 +98,7 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
     if !tool.call.query.is_empty() {
         writeln!(output, "          query: {{")?;
         for (key, value) in &tool.call.query {
-            writeln!(
-                output,
-                "            \"{key}\": {} ?? \"\",",
-                display_value(value)
-            )?;
+            writeln!(output, "            \"{key}\": {},", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
@@ -110,22 +106,13 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
     if !tool.call.headers.is_empty() {
         writeln!(output, "          headers: {{")?;
         for (key, value) in &tool.call.headers {
-            // TODO: handle non-nullable header values
-            writeln!(
-                output,
-                " \"{key}\": {}?.toString() ?? \"\",",
-                display_value(value)
-            )?;
+            writeln!(output, "            \"{key}\": {},", display_value(value))?;
         }
         writeln!(output, "          }},")?;
     }
 
     if let Some(body) = &tool.call.body {
-        writeln!(
-            output,
-            "          body: JSON.stringify({}),",
-            display_value(body)
-        )?;
+        writeln!(output, "          body: {},", display_value(body))?;
     }
 
     writeln!(output, "        }})")?;
@@ -175,19 +162,11 @@ fn generate_zod_schema_from_tool(tool: &MCPTool) -> anyhow::Result<String> {
 
     let mut visited = HashSet::new();
     for property in &tool.properties {
-        let mut prefix = String::from("    ");
-        if visited.contains(&property.name) {
-            writeln!(
-                prefix,
-                "// TODO: the following property name already exists"
-            )?;
-            write!(prefix, "    // ")?;
-        }
         visited.insert(property.name.clone());
 
         let zod_type = mcp_tool_property_to_zod_type(property, 2)?;
 
-        writeln!(zod_fields, "{}\"{}\": {}", prefix, property.name, zod_type)?;
+        writeln!(zod_fields, "    {}: {}", property.name, zod_type)?;
     }
 
     Ok(format!("{{\n{}  }}", zod_fields))
@@ -237,7 +216,7 @@ fn mcp_tool_property_to_zod_type(
         write!(output, ".describe(\"{}\")", comment(description))?;
     }
 
-    writeln!(output, ",")?;
+    write!(output, ",")?;
 
     Ok(output)
 }

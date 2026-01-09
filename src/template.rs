@@ -16,12 +16,12 @@ pub fn update_tools_index_ts(
 
     let mut code = String::new();
     // TODO: use std::fmt::Writeln
-    code.push_str("import { MCPServer } from \"../server.js\";\n\n");
+    code.push_str("import { MCPServer } from \"../server\";\n\n");
 
     // Import all generated tools
     for tool in &server.tools {
         code.push_str(&format!(
-            "import * as {} from \"./{}.js\";\n",
+            "import * as {} from \"./{}\";\n",
             tool.name, tool.name
         ));
     }

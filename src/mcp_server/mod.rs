@@ -1,10 +1,12 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fmt::{self, Display},
 };
 
 use http::Method;
 use openapiv3::{AuthorizationCodeOAuth2Flow, OpenAPI};
+
+pub use converter::{ConverterOptions, ToolNameExceededAction};
 
 mod converter;
 
@@ -57,16 +59,16 @@ pub enum MCPToolPropertyType {
     Number,
     Boolean,
     Array(Box<MCPToolProperty>),
-    Object(HashMap<String, MCPToolProperty>),
+    Object(BTreeMap<String, MCPToolProperty>),
 }
 
 #[derive(Debug, Clone)]
 pub struct Call {
     pub method: Method,
-    pub headers: HashMap<String, ValueSource>,
+    pub headers: BTreeMap<String, ValueSource>,
     pub path: String,
-    pub path_params: HashMap<String, ValueSource>,
-    pub query: HashMap<String, ValueSource>,
+    pub path_params: BTreeMap<String, ValueSource>,
+    pub query: BTreeMap<String, ValueSource>,
     pub body: Option<ValueSource>,
 }
 
@@ -107,8 +109,8 @@ impl Display for Value {
 }
 
 impl MCPServer {
-    pub fn from_openapi(openapi: OpenAPI) -> anyhow::Result<Self> {
-        converter::openapi_to_mcp_server(openapi)
+    pub fn from_openapi(openapi: OpenAPI, options: ConverterOptions) -> anyhow::Result<Self> {
+        converter::openapi_to_mcp_server(openapi, options)
     }
 }
 
