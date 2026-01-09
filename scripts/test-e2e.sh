@@ -63,7 +63,7 @@ for dir in ./tests/*/; do
 
 	# Generate MCP server code
 	echo "Generating MCP server from $spec_file..."
-	wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git --name "$dir/generated"
+	wash new ${PWD}/mcp-server-template-ts --name "$dir/generated"
 
 	# if is microsoft-graph is too big, so we need to skip some routes
 	if [ "$dir" == "./tests/microsoft-graph" ]; then
