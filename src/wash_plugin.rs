@@ -51,6 +51,86 @@ impl Guest for Plugin {
                             value: None,
                         },
                     ),
+                    (
+                        "include-tools".to_string(),
+                        CommandArgument {
+                            name: "include-tools".to_string(),
+                            description: "Regex patterns for tools to include in the MCP server. If empty, all tools will be included.".to_string(),
+                            env: Some("OPENAPI2MCP_INCLUDE_TOOLS".to_string()),
+                            default: Some("".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "include-methods".to_string(),
+                        CommandArgument {
+                            name: "include-methods".to_string(),
+                            description: "Methods to include in the MCP server. If not provided, all methods will be included.".to_string(),
+                            env: Some("OPENAPI2MCP_INCLUDE_METHODS".to_string()),
+                            default: Some("".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "max-tool-name-length".to_string(),
+                        CommandArgument {
+                            name: "max-tool-name-length".to_string(),
+                            description: "Maximum length of the tool name. Default is `DEFAULT_MAX_TOOL_NAME_LENGTH`.".to_string(),
+                            env: Some("OPENAPI2MCP_MAX_TOOL_NAME_LENGTH".to_string()),
+                            default: Some("".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "tool-name-exceeded-action".to_string(),
+                        CommandArgument {
+                            name: "tool-name-exceeded-action".to_string(),
+                            description: "Action to take when a tool name exceeds the maximum length. Can be `skip` or `fail`. Default is `fail`.".to_string(),
+                            env: Some("OPENAPI2MCP_TOOL_NAME_EXCEEDED_ACTION".to_string()),
+                            default: Some("fail".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "oauth2".to_string(),
+                        CommandArgument {
+                            name: "oauth2".to_string(),
+                            description: "Enable OAuth2 authentication.".to_string(),
+                            env: Some("OPENAPI2MCP_OAUTH2".to_string()),
+                            default: Some("false".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "oauth2-auth-url".to_string(),
+                        CommandArgument {
+                            name: "oauth2-auth-url".to_string(),
+                            description: "The authorization URL to be used for this flow.".to_string(),
+                            env: Some("OPENAPI2MCP_OAUTH2_AUTH_URL".to_string()),
+                            default: Some("".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "oauth2-token-url".to_string(),
+                        CommandArgument {
+                            name: "oauth2-token-url".to_string(),
+                            description: "The token URL to be used for this flow.".to_string(),
+                            env: Some("OPENAPI2MCP_OAUTH2_TOKEN_URL".to_string()),
+                            default: Some("".to_string()),
+                            value: None,
+                        },
+                    ),
+                    (
+                        "oauth2-refresh-url".to_string(),
+                        CommandArgument {
+                            name: "oauth2-refresh-url".to_string(),
+                            description: "The URL to be used for obtaining refresh tokens.".to_string(),
+                            env: Some("OPENAPI2MCP_OAUTH2_REFRESH_URL".to_string()),
+                            default: Some("".to_string()),
+                            value: None,
+                        },
+                    ),
                 ],
                 arguments: vec![CommandArgument {
                     name: "input".to_string(),
@@ -101,6 +181,104 @@ impl Guest for Plugin {
             .and_then(|(_, arg)| arg.value.as_ref())
             .ok_or_else(|| "No project path specified".to_string())?;
 
+        // Find the "include-methods" flag value
+        let include_methods = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "include-methods")
+            .and_then(|(_, arg)| arg.value.as_ref())
+            .ok_or_else(|| "No include methods specified".to_string())?;
+        let include_methods = match include_methods.is_empty() {
+            true => Vec::new(),
+            false => {
+                let mut methods = Vec::new();
+                for method in include_methods.split(',') {
+                    let method =
+                        http::Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
+                    methods.push(method);
+                }
+                methods
+            }
+        };
+
+        // Find the "include-tools" flag value
+        let include_tools = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "include-tools")
+            .and_then(|(_, arg)| arg.value.as_ref())
+            .ok_or_else(|| "No include tools specified".to_string())?;
+        let include_tools = if include_tools.is_empty() {
+            None
+        } else {
+            Some(regex::Regex::new(include_tools).map_err(|e| e.to_string())?)
+        };
+
+        // Find the "tool-name-exceeded-action" flag value
+        let tool_name_exceeded_action = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "tool-name-exceeded-action")
+            .and_then(|(_, arg)| arg.value.as_ref().map(|s| s.to_lowercase()))
+            .ok_or_else(|| "No tool name exceeded action specified".to_string())?;
+        let tool_name_exceeded_action = if tool_name_exceeded_action.to_lowercase() == "skip" {
+            crate::ToolNameExceededAction::Skip
+        } else {
+            crate::ToolNameExceededAction::Fail
+        };
+
+        // Find the "oauth2" flag value
+        let oauth2 = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "oauth2")
+            .and_then(|(_, arg)| arg.value.as_ref())
+            .ok_or_else(|| "No oauth2 flag specified".to_string())?
+            .to_lowercase();
+        let oauth2 = oauth2 == "true" || oauth2 == "1";
+
+        // Find the "oauth2-auth-url" flag value
+        let oauth2_auth_url = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "oauth2-auth-url")
+            .and_then(|(_, arg)| arg.value.clone())
+            .ok_or_else(|| "No oauth2-auth-url flag specified".to_string())?;
+
+        // Find the "oauth2-token-url" flag value
+        let oauth2_token_url = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "oauth2-token-url")
+            .and_then(|(_, arg)| arg.value.clone())
+            .ok_or_else(|| "No oauth2-token-url flag specified".to_string())?;
+
+        // Find the "oauth2-refresh-url" flag value
+        let oauth2_refresh_url = cmd
+            .flags
+            .iter()
+            .find(|(name, _)| name == "oauth2-refresh-url")
+            .and_then(|(_, arg)| arg.value.clone())
+            .ok_or_else(|| "No oauth2-refresh-url flag specified".to_string())?;
+
+        if !oauth2
+            && (!oauth2_auth_url.is_empty()
+                || !oauth2_token_url.is_empty()
+                || !oauth2_refresh_url.is_empty())
+        {
+            return Err(
+                "OAuth2 authentication is not enabled, but OAuth2 configuration is provided"
+                    .to_string(),
+            );
+        }
+
+        if oauth2 && (oauth2_auth_url.is_empty() || oauth2_token_url.is_empty()) {
+            return Err(
+                "OAuth2 authentication is enabled, but OAuth2 configuration is not provided"
+                    .to_string(),
+            );
+        }
+
         // Get the preopened sandbox directory - this is where we can write files in Wasm
         // TODO remove, when we have wash volumeMounts, this is just getting the home dir path for the plugin
         let preopens = bindings::wasi::filesystem::preopens::get_directories();
@@ -117,7 +295,11 @@ impl Guest for Plugin {
         // Copy the entire project into the sandbox so we can read and modify template files
         runner.host_exec(
             "cp",
-            &["-Rp".to_string(), project_path.clone(), sandbox_generated.clone()],
+            &[
+                "-Rp".to_string(),
+                project_path.clone(),
+                sandbox_generated.clone(),
+            ],
         )?;
 
         // Copy input file to sandbox via host
@@ -138,10 +320,33 @@ impl Guest for Plugin {
             ],
         )?;
 
+        let oauth2_info = if oauth2 {
+            Some(openapiv3::AuthorizationCodeOAuth2Flow {
+                authorization_url: oauth2_auth_url,
+                token_url: oauth2_token_url,
+                refresh_url: if oauth2_refresh_url.is_empty() {
+                    None
+                } else {
+                    Some(oauth2_refresh_url)
+                },
+                scopes: Default::default(),
+                extensions: Default::default(),
+            })
+        } else {
+            None
+        };
+
         // Generate into the sandbox (WASM can read and modify template files here)
         crate::generate(
             format!("{sandbox_path}/spec.yaml"),
             format!("{sandbox_path}/generated"),
+            crate::GenerateOptions {
+                include_tools,
+                include_methods,
+                tool_name_exceeded_action,
+                oauth2_info,
+                ..Default::default()
+            },
         )
         .map_err(|e| format!("failed to generate MCP: {e}"))?;
 
@@ -157,10 +362,7 @@ impl Guest for Plugin {
         )?;
 
         // Cleanup the sandbox directory via host
-        runner.host_exec(
-            "rm",
-            &["-rf".to_string(), sandbox_generated],
-        )?;
+        runner.host_exec("rm", &["-rf".to_string(), sandbox_generated])?;
 
         Ok("MCP server generated successfully".to_string())
     }

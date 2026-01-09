@@ -14,7 +14,11 @@ use std::{fs, path::Path};
 use openapiv3::OpenAPI;
 
 pub use crate::codegen_typescript::generate_typescript_code;
+use crate::mcp_server::ConverterOptions;
 pub use crate::mcp_server::MCPServer;
+pub use crate::mcp_server::ToolNameExceededAction;
+
+pub type GenerateOptions = ConverterOptions;
 
 /// Generate MCP server code from an OpenAPI spec
 ///
@@ -24,6 +28,7 @@ pub use crate::mcp_server::MCPServer;
 pub fn generate(
     openapi_path: impl AsRef<Path>,
     project_path: impl AsRef<Path>,
+    options: GenerateOptions,
 ) -> anyhow::Result<()> {
     let openapi_path = openapi_path.as_ref();
     let project_path = project_path.as_ref();
@@ -35,7 +40,7 @@ pub fn generate(
     );
 
     let openapi = parse_openapi_spec_from_path(openapi_path)?;
-    let mcp_server = MCPServer::from_openapi(openapi)?;
+    let mcp_server = MCPServer::from_openapi(openapi, options)?;
 
     let tools_code_path = project_path.join("src/routes/v1/mcp/tools/");
     generate_typescript_code(&mcp_server, |file_code| {

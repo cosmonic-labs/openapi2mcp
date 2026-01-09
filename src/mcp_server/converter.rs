@@ -1,73 +1,145 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use convert_case::Casing;
 use http::Method;
 use openapiv3::{
     OAuth2Flows, OpenAPI, Parameter, PathItem, ReferenceOr, RequestBody, Schema, SecurityScheme,
 };
+use regex::Regex;
 
 use crate::mcp_server::{
     Call, MCPServer, MCPTool, MCPToolProperty, MCPToolPropertyRequired, MCPToolPropertyType,
     PropertyId, Value, ValueSource,
 };
 
-pub fn openapi_to_mcp_server(openapi: OpenAPI) -> anyhow::Result<MCPServer> {
-    let oauth2_info = get_oauth2_info(&openapi)
-        .and_then(|info| info.authorization_code.as_ref())
-        .cloned();
+pub const DEFAULT_MAX_TOOL_NAME_LENGTH: u32 = 80;
+
+#[derive(Debug, Clone, Default)]
+pub struct ConverterOptions {
+    /// Regex patterns to include in the MCP server. If not provided, all tools will be included.
+    pub include_tools: Option<Regex>,
+    /// Methods to include in the MCP server. If not provided, all methods will be included.
+    pub include_methods: Vec<http::Method>,
+    /// Maximum length of the tool name. Default is `DEFAULT_MAX_TOOL_NAME_LENGTH`.
+    pub max_tool_name_length: Option<u32>,
+    /// Action to take when a tool name exceeds the maximum length. Default is `ToolNameExceededAction::Fail`.
+    pub tool_name_exceeded_action: ToolNameExceededAction,
+    /// OAuth2 information.
+    pub oauth2_info: Option<openapiv3::AuthorizationCodeOAuth2Flow>,
+}
+
+#[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
+pub enum ToolNameExceededAction {
+    /// Skip the tool and continue with the next one.
+    Skip,
+    /// Fail the conversion with an error.
+    #[default]
+    Fail,
+}
+
+pub fn openapi_to_mcp_server(
+    openapi: OpenAPI,
+    options: ConverterOptions,
+) -> anyhow::Result<MCPServer> {
+    let oauth2_info_from_spec =
+        get_oauth2_info(&openapi).and_then(|info| info.authorization_code.as_ref());
+    let oauth2_info_from_options = options.oauth2_info.clone();
+    let oauth2_info = oauth2_info_from_options.or_else(|| oauth2_info_from_spec.cloned());
+
+    let include_methods = &options.include_methods;
+    let include_tools = &options.include_tools;
 
     let mut tools = Vec::new();
     for (path, path_item_ref) in &openapi.paths.paths {
+        if matches!(&include_tools, Some(regex) if !regex.is_match(path)) {
+            continue;
+        }
+
         let path_item = resolve_path(&openapi, path_item_ref).unwrap();
 
         if let Some(operation) = &path_item.get {
-            tools.push(operation_to_tool(
+            if !include_methods.is_empty() && !include_methods.contains(&Method::GET) {
+                continue;
+            }
+            let tool = operation_to_tool(
                 Method::GET,
                 path,
                 operation,
                 &path_item.parameters,
                 &openapi,
-            )?);
+                &options,
+            )?;
+            if let Some(tool) = tool {
+                tools.push(tool);
+            }
             log::info!("Added GET tool for path: {}", path);
         }
         if let Some(operation) = &path_item.post {
-            tools.push(operation_to_tool(
+            if !include_methods.is_empty() && !include_methods.contains(&Method::POST) {
+                continue;
+            }
+            let tool = operation_to_tool(
                 Method::POST,
                 path,
                 operation,
                 &path_item.parameters,
                 &openapi,
-            )?);
+                &options,
+            )?;
+            if let Some(tool) = tool {
+                tools.push(tool);
+            }
             log::info!("Added POST tool for path: {}", path);
         }
         if let Some(operation) = &path_item.put {
-            tools.push(operation_to_tool(
+            if !include_methods.is_empty() && !include_methods.contains(&Method::PUT) {
+                continue;
+            }
+            let tool = operation_to_tool(
                 Method::PUT,
                 path,
                 operation,
                 &path_item.parameters,
                 &openapi,
-            )?);
+                &options,
+            )?;
+            if let Some(tool) = tool {
+                tools.push(tool);
+            }
             log::info!("Added PUT tool for path: {}", path);
         }
         if let Some(operation) = &path_item.delete {
-            tools.push(operation_to_tool(
+            if !include_methods.is_empty() && !include_methods.contains(&Method::DELETE) {
+                continue;
+            }
+            let tool = operation_to_tool(
                 Method::DELETE,
                 path,
                 operation,
                 &path_item.parameters,
                 &openapi,
-            )?);
+                &options,
+            )?;
+            if let Some(tool) = tool {
+                tools.push(tool);
+            }
             log::info!("Added DELETE tool for path: {}", path);
         }
         if let Some(operation) = &path_item.patch {
-            tools.push(operation_to_tool(
+            if !include_methods.is_empty() && !include_methods.contains(&Method::PATCH) {
+                continue;
+            }
+            let tool = operation_to_tool(
                 Method::PATCH,
                 path,
                 operation,
                 &path_item.parameters,
                 &openapi,
-            )?);
+                &options,
+            )?;
+            if let Some(tool) = tool {
+                tools.push(tool);
+            }
             log::info!("Added PATCH tool for path: {}", path);
         }
     }
@@ -97,68 +169,102 @@ fn operation_to_tool(
     operation: &openapiv3::Operation,
     route_params: &[ReferenceOr<Parameter>],
     openapi: &OpenAPI,
-) -> anyhow::Result<MCPTool> {
+    options: &ConverterOptions,
+) -> anyhow::Result<Option<MCPTool>> {
+    let max_tool_name_length = options
+        .max_tool_name_length
+        .unwrap_or(DEFAULT_MAX_TOOL_NAME_LENGTH) as usize;
+    let tool_name_exceeded_action = options.tool_name_exceeded_action;
+
     let tool_name = format!(
         "{}_{}",
         method.to_string().to_lowercase(),
-        path.trim_matches('/')
-            .replace(',', "_")
-            .replace('/', "_")
-            .replace('-', "_")
-            .replace('{', "")
-            .replace('}', "")
-            .to_case(convert_case::Case::Snake)
+        cleanup_string(path)
     );
+
+    if tool_name.len() > max_tool_name_length {
+        match tool_name_exceeded_action {
+            ToolNameExceededAction::Skip => return Ok(None),
+            ToolNameExceededAction::Fail => {
+                anyhow::bail!("Tool name {} exceeded the maximum length", tool_name)
+            }
+        }
+    }
 
     let description = operation
         .description
         .clone()
         .unwrap_or_else(|| format!("{} {}", method, path));
 
-    let mut path_params = HashMap::new();
-    let mut query = HashMap::new();
-    let mut headers = HashMap::new();
+    let mut path_params = BTreeMap::new();
+    let mut query = BTreeMap::new();
+    let mut headers = BTreeMap::new();
     let mut properties = Vec::new();
+    let mut used_property_names = HashMap::new();
     let all_params = operation.parameters.iter().chain(route_params.iter());
 
     // TODO: take another look at the parameters
     for param_ref in all_params {
-        let parameter_data = match resolve_parameter(openapi, param_ref).unwrap() {
-            openapiv3::Parameter::Query { parameter_data, .. } => {
-                query.insert(
-                    parameter_data.name.clone(),
-                    ValueSource::Property(PropertyId::from_query(&parameter_data.name)),
-                );
-                parameter_data
-            }
-            openapiv3::Parameter::Header { parameter_data, .. } => {
-                headers.insert(
-                    parameter_data.name.clone(),
-                    ValueSource::Property(PropertyId::from_header(&parameter_data.name)),
-                );
-                parameter_data
-            }
-            openapiv3::Parameter::Path { parameter_data, .. } => {
-                path_params.insert(
-                    parameter_data.name.clone(),
-                    ValueSource::Property(PropertyId::from_path(&parameter_data.name)),
-                );
-                parameter_data
-            }
+        let parameter = resolve_parameter(openapi, param_ref).unwrap();
+
+        let parameter_data = match parameter {
+            openapiv3::Parameter::Query { parameter_data, .. } => parameter_data,
+            openapiv3::Parameter::Header { parameter_data, .. } => parameter_data,
+            openapiv3::Parameter::Path { parameter_data, .. } => parameter_data,
             openapiv3::Parameter::Cookie { .. } => todo!(),
         };
+
         let required = if parameter_data.required {
             MCPToolPropertyRequired::Required
         } else {
             MCPToolPropertyRequired::Optional
         };
+        // original name is the name of the parameter as it is in the OpenAPI spec
+        let original_name = parameter_data.name.clone();
+
+        // property name is the name of the property in the MCP server that might have a suffix if the name is already used
+        let property_name = cleanup_string(&original_name);
+        let property_name = match used_property_names.get(&property_name) {
+            Some(count) => {
+                let count = *count;
+                used_property_names.insert(property_name.clone(), count + 1);
+                format!("{}_{}", property_name, count + 1)
+            }
+            None => {
+                used_property_names.insert(property_name.clone(), 1);
+                property_name
+            }
+        };
+
         properties.push(MCPToolProperty {
-            name: parameter_data.name.clone(),
+            name: property_name.clone(),
             description: parameter_data.description.clone(),
             required,
             // TODO: don't hardcode string
             type_: MCPToolPropertyType::String,
         });
+
+        match parameter {
+            openapiv3::Parameter::Query { .. } => {
+                query.insert(
+                    original_name,
+                    ValueSource::Property(PropertyId::from_query(&property_name)),
+                );
+            }
+            openapiv3::Parameter::Header { .. } => {
+                headers.insert(
+                    original_name,
+                    ValueSource::Property(PropertyId::from_header(&property_name)),
+                );
+            }
+            openapiv3::Parameter::Path { .. } => {
+                path_params.insert(
+                    original_name,
+                    ValueSource::Property(PropertyId::from_path(&property_name)),
+                );
+            }
+            openapiv3::Parameter::Cookie { .. } => todo!(),
+        };
     }
 
     fn schema_kind_to_mcp_tool_property<'a>(
@@ -175,7 +281,7 @@ fn operation_to_tool(
                         MCPToolPropertyType::Number
                     }
                     openapiv3::Type::Object(object_type) => {
-                        let mut object = HashMap::new();
+                        let mut object = BTreeMap::new();
                         for (name, schema) in object_type.properties.iter() {
                             let schema = resolve_boxed_schema(openapi, schema).unwrap();
                             let value = schema_kind_to_mcp_tool_property(&schema, openapi);
@@ -236,7 +342,7 @@ fn operation_to_tool(
             // openapiv3::SchemaKind::Any(any_schema) => todo!(),
             // _ => todo!(),
             a => {
-                println!("schema_kind: {:#?}", a);
+                log::error!("skipping schema_kind: {:#?}", a);
                 None
             }
         }
@@ -266,7 +372,7 @@ fn operation_to_tool(
         }
     });
 
-    Ok(MCPTool {
+    Ok(Some(MCPTool {
         call: Call {
             method,
             path: path.to_string(),
@@ -278,7 +384,7 @@ fn operation_to_tool(
         properties,
         name: tool_name,
         description,
-    })
+    }))
 }
 
 fn get_oauth2_info(openapi: &OpenAPI) -> Option<&OAuth2Flows> {
@@ -388,4 +494,19 @@ fn resolve_boxed_schema<'a>(
         }
         ReferenceOr::Item(schema) => Some(schema),
     }
+}
+
+fn cleanup_string(s: &str) -> String {
+    s.chars()
+        .filter_map(|c| {
+            if matches!(c, '-' | '/' | '\\' | ',' | '.') {
+                return Some('_');
+            }
+            if c == '_' || c.is_alphanumeric() {
+                return Some(c);
+            }
+            None
+        })
+        .collect::<String>()
+        .to_case(convert_case::Case::Snake)
 }

@@ -63,8 +63,15 @@ for dir in ./tests/*/; do
 
 	# Generate MCP server code
 	echo "Generating MCP server from $spec_file..."
-	wash new --name "$dir/generated" https://github.com/cosmonic-labs/mcp-server-template-ts.git
-	wash openapi2mcp "$spec_file" --project-path "$dir/generated"
+	wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git --name "$dir/generated"
+
+	# if is microsoft-graph is too big, so we need to skip some routes
+	if [ "$dir" == "./tests/microsoft-graph" ]; then
+		wash openapi2mcp "$spec_file" --project-path "$dir/generated" --include-methods GET --include-tools "drives/\\{drive-id\\}|me/drive|me/mail|me/calendar|me/chats" --tool-name-exceeded-action Skip --oauth2 true --oauth2-auth-url "https://login.microsoftonline.com/common/oauth2/v2.0/authorize" --oauth2-token-url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+	else
+		wash openapi2mcp "$spec_file" --project-path "$dir/generated"
+	fi
+
 	if [ $? -ne 0 ]; then
 		echo "Error: Failed to generate MCP server from $spec_file"
 		echo "Check if the OpenAPI spec is valid and the plugin is working"
