@@ -24,9 +24,11 @@ struct Cli {
     /// Maximum length of the tool name. Default is `DEFAULT_MAX_TOOL_NAME_LENGTH`.
     max_tool_name_length: Option<u32>,
 
-    /// Action to take when a tool name exceeds the maximum length. Default is `ToolNameExceededAction::Fail`.
-    #[arg(long, value_enum, default_value_t = openapi2mcp::ToolNameExceededAction::default())]
-    tool_name_exceeded_action: openapi2mcp::ToolNameExceededAction,
+    /// Skip tool names that exceed the maximum length. Default is `false`.
+    /// If true, the tool will be skipped and the next tool will be processed.
+    /// If false, the tool throw an error.
+    #[arg(long, default_value_t = false)]
+    skip_long_tool_names: bool,
 
     /// Enable OAuth2 authentication.
     #[arg(long, default_value_t = false)]
@@ -72,7 +74,7 @@ fn main() -> anyhow::Result<()> {
             include_tools,
             include_methods,
             // max_tool_name_length: None,
-            tool_name_exceeded_action: openapi2mcp::ToolNameExceededAction::Skip,
+            skip_long_tool_names: cli.skip_long_tool_names,
             oauth2_info,
             ..Default::default()
         },

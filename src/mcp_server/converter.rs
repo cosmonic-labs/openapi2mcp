@@ -22,19 +22,12 @@ pub struct ConverterOptions {
     pub include_methods: Vec<http::Method>,
     /// Maximum length of the tool name. Default is `DEFAULT_MAX_TOOL_NAME_LENGTH`.
     pub max_tool_name_length: Option<u32>,
-    /// Action to take when a tool name exceeds the maximum length. Default is `ToolNameExceededAction::Fail`.
-    pub tool_name_exceeded_action: ToolNameExceededAction,
+    /// Skip tool names that exceed the maximum length. Default is `false`.
+    /// If true, the tool will be skipped and the next tool will be processed.
+    /// If false, the tool throw an error.
+    pub skip_long_tool_names: bool,
     /// OAuth2 information.
     pub oauth2_info: Option<openapiv3::AuthorizationCodeOAuth2Flow>,
-}
-
-#[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
-pub enum ToolNameExceededAction {
-    /// Skip the tool and continue with the next one.
-    Skip,
-    /// Fail the conversion with an error.
-    #[default]
-    Fail,
 }
 
 pub fn openapi_to_mcp_server(
@@ -174,7 +167,7 @@ fn operation_to_tool(
     let max_tool_name_length = options
         .max_tool_name_length
         .unwrap_or(DEFAULT_MAX_TOOL_NAME_LENGTH) as usize;
-    let tool_name_exceeded_action = options.tool_name_exceeded_action;
+    let skip_long_tool_names = options.skip_long_tool_names;
 
     let tool_name = format!(
         "{}_{}",
@@ -183,11 +176,9 @@ fn operation_to_tool(
     );
 
     if tool_name.len() > max_tool_name_length {
-        match tool_name_exceeded_action {
-            ToolNameExceededAction::Skip => return Ok(None),
-            ToolNameExceededAction::Fail => {
-                anyhow::bail!("Tool name {} exceeded the maximum length", tool_name)
-            }
+        match skip_long_tool_names {
+            true => return Ok(None),
+            false => anyhow::bail!("Tool name {} exceeded the maximum length", tool_name),
         }
     }
 
