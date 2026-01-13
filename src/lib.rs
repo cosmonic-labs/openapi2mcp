@@ -16,7 +16,6 @@ use openapiv3::OpenAPI;
 pub use crate::codegen_typescript::generate_typescript_code;
 use crate::mcp_server::ConverterOptions;
 pub use crate::mcp_server::MCPServer;
-pub use crate::mcp_server::ToolNameExceededAction;
 
 pub type GenerateOptions = ConverterOptions;
 

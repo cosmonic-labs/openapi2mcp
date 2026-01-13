@@ -82,11 +82,11 @@ impl Guest for Plugin {
                         },
                     ),
                     (
-                        "tool-name-exceeded-action".to_string(),
+                        "skip-long-tool-names".to_string(),
                         CommandArgument {
-                            name: "tool-name-exceeded-action".to_string(),
-                            description: "Action to take when a tool name exceeds the maximum length. Can be `skip` or `fail`. Default is `fail`.".to_string(),
-                            env: Some("OPENAPI2MCP_TOOL_NAME_EXCEEDED_ACTION".to_string()),
+                            name: "skip-long-tool-names".to_string(),
+                            description: "Skip tool names that exceed the maximum length. Default is `false`. If true, the tool will be skipped and the next tool will be processed. If false, the tool will throw an error.".to_string(),
+                            env: Some("OPENAPI2MCP_skip_long_tool_names".to_string()),
                             default: Some("fail".to_string()),
                             value: None,
                         },
@@ -214,18 +214,14 @@ impl Guest for Plugin {
             Some(regex::Regex::new(include_tools).map_err(|e| e.to_string())?)
         };
 
-        // Find the "tool-name-exceeded-action" flag value
-        let tool_name_exceeded_action = cmd
+        // Find the "skip-long-tool-names" flag value
+        let skip_long_tool_names = cmd
             .flags
             .iter()
-            .find(|(name, _)| name == "tool-name-exceeded-action")
+            .find(|(name, _)| name == "skip-long-tool-names")
             .and_then(|(_, arg)| arg.value.as_ref().map(|s| s.to_lowercase()))
             .ok_or_else(|| "No tool name exceeded action specified".to_string())?;
-        let tool_name_exceeded_action = if tool_name_exceeded_action.to_lowercase() == "skip" {
-            crate::ToolNameExceededAction::Skip
-        } else {
-            crate::ToolNameExceededAction::Fail
-        };
+        let skip_long_tool_names = skip_long_tool_names.to_lowercase() == "true";
 
         // Find the "oauth2" flag value
         let oauth2 = cmd
@@ -343,7 +339,7 @@ impl Guest for Plugin {
             crate::GenerateOptions {
                 include_tools,
                 include_methods,
-                tool_name_exceeded_action,
+                skip_long_tool_names,
                 oauth2_info,
                 ..Default::default()
             },

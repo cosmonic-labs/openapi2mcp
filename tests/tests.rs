@@ -60,7 +60,7 @@ mod tests {
                         .unwrap(),
                 ),
                 include_methods: vec![http::Method::GET],
-                tool_name_exceeded_action: openapi2mcp::ToolNameExceededAction::Skip,
+                skip_long_tool_names: true,
                 oauth2_info: Some(openapiv3::AuthorizationCodeOAuth2Flow {
                     authorization_url:
                         "https://login.microsoftonline.com/common/oauth2/v2.0/authorize".to_string(),

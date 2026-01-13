@@ -6,7 +6,7 @@ use std::{
 use http::Method;
 use openapiv3::{AuthorizationCodeOAuth2Flow, OpenAPI};
 
-pub use converter::{ConverterOptions, ToolNameExceededAction};
+pub use converter::ConverterOptions;
 
 mod converter;
 

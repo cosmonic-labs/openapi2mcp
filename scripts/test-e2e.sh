@@ -67,7 +67,7 @@ for dir in ./tests/*/; do
 
 	# if this is microsoft-graph then its too large, so we need to skip some routes
 	if [ "$dir" == "./tests/microsoft-graph" ]; then
-		wash openapi2mcp "$spec_file" --project-path "$dir/generated" --include-methods GET --include-tools "drives/\\{drive-id\\}|me/drive|me/mail|me/calendar|me/chats" --tool-name-exceeded-action Skip --oauth2 true --oauth2-auth-url "https://login.microsoftonline.com/common/oauth2/v2.0/authorize" --oauth2-token-url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+		wash openapi2mcp "$spec_file" --project-path "$dir/generated" --include-methods GET --include-tools "drives/\\{drive-id\\}|me/drive|me/mail|me/calendar|me/chats" --skip-long-tool-names true --oauth2 true --oauth2-auth-url "https://login.microsoftonline.com/common/oauth2/v2.0/authorize" --oauth2-token-url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 	else
 		wash openapi2mcp "$spec_file" --project-path "$dir/generated"
 	fi
