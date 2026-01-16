@@ -9,7 +9,6 @@ set -euo pipefail
 # Cleanup function
 cleanup() {
 	echo "Cleaning up..."
-	wash plugin uninstall openapi2mcp || true
 	rm -rf ./tests/*/generated
 }
 
@@ -22,13 +21,6 @@ echo "Starting E2E tests for openapi2mcp..."
 WASM_FILE="./target/wasm32-wasip2/release/openapi2mcp.wasm"
 if [ ! -f "$WASM_FILE" ]; then
 	echo "Error: Wasm file not found at $WASM_FILE"
-	exit 1
-fi
-
-# Install the plugin
-echo "Installing openapi2mcp wash plugin..."
-if ! wash plugin install "$WASM_FILE" --force; then
-	echo "Error: Failed to add openapi2mcp as a wash plugin"
 	exit 1
 fi
 
@@ -63,13 +55,13 @@ for dir in ./tests/*/; do
 
 	# Generate MCP server code
 	echo "Generating MCP server from $spec_file..."
-	wash new ${PWD}/mcp-server-template-ts --name "$dir/generated"
+	git clone ${PWD}/mcp-server-template-ts "$dir/generated"
 
 	# if this is microsoft-graph then its too large, so we need to skip some routes
 	if [ "$dir" == "./tests/microsoft-graph" ]; then
-		wash openapi2mcp "$spec_file" --project-path "$dir/generated" --include-methods GET --include-tools "drives/\\{drive-id\\}|me/drive|me/mail|me/calendar|me/chats" --skip-long-tool-names true --oauth2 true --oauth2-auth-url "https://login.microsoftonline.com/common/oauth2/v2.0/authorize" --oauth2-token-url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+		node index.js "$spec_file" --project-path "$dir/generated" --include-methods GET --include-tools "drives/\\{drive-id\\}|me/drive|me/mail|me/calendar|me/chats" --skip-long-tool-names --oauth2 --oauth2-auth-url "https://login.microsoftonline.com/common/oauth2/v2.0/authorize" --oauth2-token-url "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 	else
-		wash openapi2mcp "$spec_file" --project-path "$dir/generated"
+		node index.js "$spec_file" --project-path "$dir/generated"
 	fi
 
 	if [ $? -ne 0 ]; then

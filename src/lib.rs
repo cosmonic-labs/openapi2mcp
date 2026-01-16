@@ -4,9 +4,6 @@ pub mod template;
 
 mod template_features;
 
-#[cfg(all(target_os = "wasi", target_env = "p2"))]
-pub mod wash_plugin;
-
 use std::io;
 use std::path::PathBuf;
 use std::{fs, path::Path};

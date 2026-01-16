@@ -17,9 +17,6 @@ regex = "1.12.2"
 serde_json = "1.0.143"
 serde_yaml = "0.9.34"
 
-[target.'cfg(all(target_os = "wasi", target_env = "p2"))'.dependencies]
-wit-bindgen = "0.45"
-
 [profile.release]
 opt-level = "z"
 lto = true
