@@ -21,6 +21,7 @@ struct Cli {
     include_methods: Vec<String>,
 
     /// Maximum length of the tool name. Default is `DEFAULT_MAX_TOOL_NAME_LENGTH`.
+    #[arg(long)]
     max_tool_name_length: Option<u32>,
 
     /// Skip tool names that exceed the maximum length. Default is `false`.
@@ -72,7 +73,7 @@ fn main() -> anyhow::Result<()> {
         openapi2mcp::GenerateOptions {
             include_tools,
             include_methods,
-            // max_tool_name_length: None,
+            max_tool_name_length: cli.max_tool_name_length,
             skip_long_tool_names: cli.skip_long_tool_names,
             oauth2_info,
             ..Default::default()
