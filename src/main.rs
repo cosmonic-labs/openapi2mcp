@@ -6,7 +6,6 @@ use std::path::PathBuf;
 #[command(version, about, long_about = None)]
 struct Cli {
     /// Path to the OpenAPI specification file.
-    #[arg(short, long)]
     input: PathBuf,
 
     /// Path to the project root directory where code will be generated.
