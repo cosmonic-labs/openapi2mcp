@@ -40,5 +40,11 @@ jobs:
       - name: Build component
         uses: wasmcloud/actions/wash-build@v0.2.0
 
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Transpile wasm to JS
+        run: npm run build:jco
+
       - name: Generate MCP from OpenAPI spec
         run: ./scripts/test-e2e.sh
