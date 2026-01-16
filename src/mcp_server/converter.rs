@@ -501,3 +501,155 @@ fn cleanup_string(s: &str) -> String {
         .collect::<String>()
         .to_case(convert_case::Case::Snake)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Create a minimal OpenAPI spec for testing
+    fn minimal_openapi() -> OpenAPI {
+        OpenAPI {
+            openapi: "3.0.0".to_string(),
+            info: openapiv3::Info {
+                title: "Test API".to_string(),
+                version: "1.0.0".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Create a minimal operation for testing
+    fn minimal_operation() -> openapiv3::Operation {
+        openapiv3::Operation {
+            description: Some("Test operation".to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_short_tool_name_within_default_limit() {
+        let openapi = minimal_openapi();
+        let operation = minimal_operation();
+        let options = ConverterOptions::default();
+
+        let result = operation_to_tool(
+            Method::GET,
+            "/users",
+            &operation,
+            &[],
+            &openapi,
+            &options,
+        );
+
+        assert!(result.is_ok());
+        let tool = result.unwrap();
+        assert!(tool.is_some());
+        assert_eq!(tool.unwrap().name, "get_users");
+    }
+
+    #[test]
+    fn test_long_tool_name_exceeds_limit_skip_false() {
+        let openapi = minimal_openapi();
+        let operation = minimal_operation();
+        let options = ConverterOptions {
+            max_tool_name_length: Some(10),
+            skip_long_tool_names: false,
+            ..Default::default()
+        };
+
+        // "get_users_profile" = 17 chars, exceeds limit of 10
+        let result = operation_to_tool(
+            Method::GET,
+            "/users/profile",
+            &operation,
+            &[],
+            &openapi,
+            &options,
+        );
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("exceeded the maximum length"));
+    }
+
+    #[test]
+    fn test_long_tool_name_exceeds_limit_skip_true() {
+        let openapi = minimal_openapi();
+        let operation = minimal_operation();
+        let options = ConverterOptions {
+            max_tool_name_length: Some(10),
+            skip_long_tool_names: true,
+            ..Default::default()
+        };
+
+        // "get_users_profile" = 17 chars, exceeds limit of 10
+        let result = operation_to_tool(
+            Method::GET,
+            "/users/profile",
+            &operation,
+            &[],
+            &openapi,
+            &options,
+        );
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none()); // Tool should be skipped
+    }
+
+    #[test]
+    fn test_tool_name_at_exact_limit() {
+        let openapi = minimal_openapi();
+        let operation = minimal_operation();
+
+        // "get_users" = 9 chars
+        let options = ConverterOptions {
+            max_tool_name_length: Some(9),
+            skip_long_tool_names: false,
+            ..Default::default()
+        };
+
+        let result = operation_to_tool(
+            Method::GET,
+            "/users",
+            &operation,
+            &[],
+            &openapi,
+            &options,
+        );
+
+        assert!(result.is_ok());
+        let tool = result.unwrap();
+        assert!(tool.is_some());
+        assert_eq!(tool.unwrap().name, "get_users");
+    }
+
+    #[test]
+    fn test_tool_name_one_over_limit() {
+        let openapi = minimal_openapi();
+        let operation = minimal_operation();
+
+        // "get_users" = 9 chars, limit is 8
+        let options = ConverterOptions {
+            max_tool_name_length: Some(8),
+            skip_long_tool_names: false,
+            ..Default::default()
+        };
+
+        let result = operation_to_tool(
+            Method::GET,
+            "/users",
+            &operation,
+            &[],
+            &openapi,
+            &options,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_default_max_tool_name_length_constant() {
+        assert_eq!(DEFAULT_MAX_TOOL_NAME_LENGTH, 80);
+    }
+}
