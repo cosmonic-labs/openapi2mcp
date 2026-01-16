@@ -1,58 +1,81 @@
 # OpenAPI to MCP Server Generator
 
+Generate MCP server tools from OpenAPI specifications. Works with [mcp-server-template-ts](https://github.com/cosmonic-labs/mcp-server-template-ts).
+
 ## Usage
 
-If you haven't already, install `wash`
+### Install via npm
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/wasmcloud/wash/refs/heads/main/install.sh | bash
+npm install -g openapi2mcp
 ```
 
-Install the latest release as a wash plugin:
+Or run directly with npx:
 
 ```shell
-wash plugin install ghcr.io/cosmonic-labs/plugins/openapi2mcp:0.5.0
+npx openapi2mcp <spec.yaml> --project-path <output-dir>
 ```
 
-Start with an MCP project, using our template to get started:
+### Generate an MCP Server
+
+Start with an MCP project using our template:
 
 ```shell
-wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git "my-mcp-server"
+git clone https://github.com/cosmonic-labs/mcp-server-template-ts.git my-mcp-server
 ```
+
 Generate MCP tools into the server project from an OpenAPI specification:
 
 ```shell
-wash openapi2mcp [path/to/open/yaml/or/json] --project-path [path/to/generated/mcp/server]
+openapi2mcp path/to/openapi.yaml --project-path my-mcp-server
 ```
 
-## Building and running from source
+### CLI Options
 
-### Run as a CLI
+| Option | Description |
+|--------|-------------|
+| `--project-path <path>` | Path to the project root directory (default: `.`) |
+| `--include-tools <regex>` | Regex pattern for tools to include |
+| `--include-methods <methods>` | Comma-separated HTTP methods to include (e.g., `GET,POST`) |
+| `--skip-long-tool-names` | Skip tools with names exceeding max length instead of erroring |
+| `--oauth2` | Enable OAuth2 authentication |
+| `--oauth2-auth-url <url>` | OAuth2 authorization URL (required if `--oauth2` is set) |
+| `--oauth2-token-url <url>` | OAuth2 token URL (required if `--oauth2` is set) |
+| `--oauth2-refresh-url <url>` | OAuth2 refresh token URL |
+
+### Example with Options
 
 ```shell
-# cargo run -- -i [path/to/open/yaml/or/json] --project-path [path/to/generated/mcp/server]
-wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git "tests/petstore/generated"
-cargo run -- -i tests/petstore/input.json --project-path tests/petstore/generated
+openapi2mcp api-spec.yaml \
+  --project-path ./my-server \
+  --include-methods GET,POST \
+  --include-tools "users|products" \
+  --oauth2 \
+  --oauth2-auth-url "https://auth.example.com/authorize" \
+  --oauth2-token-url "https://auth.example.com/token"
 ```
 
-### Use as a [wash](https://github.com/cosmonic-labs/wash) plugin
+## Building from Source
 
-Compile to Wasm targeting WASIp2:
+### Prerequisites
+
+- Rust toolchain with `wasm32-wasip2` target
+- Node.js 18+
+- [jco](https://github.com/bytecodealliance/jco)
+
+### Build
 
 ```shell
-cargo build --target wasm32-wasip2 --release
+npm install
+npm run build
 ```
 
-Install as a `wash` plugin:
+This compiles the Rust code to WASM and transpiles it to JavaScript.
+
+### Run from Source
 
 ```shell
-wash plugin install ./target/wasm32-wasip2/release/openapi2mcp.wasm
-```
+git clone https://github.com/cosmonic-labs/mcp-server-template-ts.git tests/petstore/generated
 
-Run as `wash` plugin:
-
-```shell
-# wash openapi2mcp [path/to/open/yaml/or/json] --project-path [path/to/generated/mcp/server]
-wash new https://github.com/cosmonic-labs/mcp-server-template-ts.git tests/petstore/generated
-wash openapi2mcp tests/petstore/input.json --project-path tests/petstore/generated
+node index.js tests/petstore/input.json --project-path tests/petstore/generated
 ```
