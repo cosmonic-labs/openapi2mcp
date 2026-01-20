@@ -1,5 +1,5 @@
 {
-  "name": "openapi2mcp",
+  "name": "@cosmonic/openapi2mcp",
   "version": "0.7.0",
   "description": "Generate MCP servers from OpenAPI specs. Works with https://github.com/cosmonic-labs/mcp-server-template-ts",
   "main": "index.js",
@@ -12,7 +12,7 @@
     "build": "npm run build:wasm && npm run build:jco"
   },
   "bin": {
-    "openapi2mcp": "index.js"
+    "@cosmonic/openapi2mcp": "index.js"
   },
   "files": [
     "dist",
