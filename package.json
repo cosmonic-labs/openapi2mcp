@@ -1,6 +1,6 @@
 {
   "name": "@cosmonic-labs/openapi2mcp",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Generate MCP servers from OpenAPI specs. Works with https://github.com/cosmonic-labs/mcp-server-template-ts",
   "main": "index.js",
   "directories": {
