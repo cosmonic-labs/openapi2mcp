@@ -533,14 +533,7 @@ mod tests {
         let operation = minimal_operation();
         let options = ConverterOptions::default();
 
-        let result = operation_to_tool(
-            Method::GET,
-            "/users",
-            &operation,
-            &[],
-            &openapi,
-            &options,
-        );
+        let result = operation_to_tool(Method::GET, "/users", &operation, &[], &openapi, &options);
 
         assert!(result.is_ok());
         let tool = result.unwrap();
@@ -609,14 +602,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = operation_to_tool(
-            Method::GET,
-            "/users",
-            &operation,
-            &[],
-            &openapi,
-            &options,
-        );
+        let result = operation_to_tool(Method::GET, "/users", &operation, &[], &openapi, &options);
 
         assert!(result.is_ok());
         let tool = result.unwrap();
@@ -636,14 +622,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = operation_to_tool(
-            Method::GET,
-            "/users",
-            &operation,
-            &[],
-            &openapi,
-            &options,
-        );
+        let result = operation_to_tool(Method::GET, "/users", &operation, &[], &openapi, &options);
 
         assert!(result.is_err());
     }

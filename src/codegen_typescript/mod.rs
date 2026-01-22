@@ -30,7 +30,10 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
 
     // Import statements
     writeln!(output, "import z from \"zod\";")?;
-    writeln!(output, "import {{ MCPServer }} from \"../server\";")?;
+    writeln!(
+        output,
+        "import {{ McpServer }} from \"@modelcontextprotocol/sdk/server/mcp.js\";"
+    )?;
     writeln!(
         output,
         "import {{ CallToolResult, ServerRequest, ServerNotification }} from \"@modelcontextprotocol/sdk/types.js\";"
@@ -48,7 +51,7 @@ fn tool_to_code(mcp_server: &MCPServer, tool: &MCPTool) -> anyhow::Result<String
     let zod_schema = generate_zod_schema_from_tool(&tool)?;
 
     // Generate setupTool function
-    writeln!(output, "export function setupTool(server: MCPServer) {{")?;
+    writeln!(output, "export function setupTool(server: McpServer) {{")?;
     writeln!(output, "  const params = {zod_schema};")?;
     writeln!(
         output,
