@@ -16,7 +16,7 @@ pub fn update_tools_index_ts(
 
     let mut code = String::new();
     // TODO: use std::fmt::Writeln
-    code.push_str("import { MCPServer } from \"../server\";\n\n");
+    code.push_str("import { McpServer } from \"@modelcontextprotocol/sdk/server/mcp.js\";\n\n");
 
     // Import all generated tools
     for tool in &server.tools {
@@ -26,7 +26,7 @@ pub fn update_tools_index_ts(
         ));
     }
 
-    code.push_str("\nexport function setupAllTools(server: MCPServer) {\n");
+    code.push_str("\nexport function setupAllTools(server: McpServer) {\n");
 
     // Call setupTool for each tool
     for tool in &server.tools {
@@ -51,6 +51,12 @@ pub fn update_constants_ts(
 
     let mut code = String::new();
 
+    writeln!(code, "export const SERVER_NAME = \"{}\";", server.name)?;
+    writeln!(
+        code,
+        "export const SERVER_VERSION = \"{}\";",
+        server.version
+    )?;
     writeln!(code, "export const API_BASE_URL = \"{}\";", server.base_url)?;
 
     if let Some(oauth2_info) = &server.oauth2_info {
