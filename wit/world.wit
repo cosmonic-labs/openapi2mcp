@@ -1,8 +1,0 @@
-package cosmonic:plugin@0.1.0;
-
-world openapi2mcp {
-    import wasmcloud:wash/types@0.0.2;
-    import wasi:filesystem/preopens@0.2.0;
-
-    export wasmcloud:wash/plugin@0.0.2;
-}
