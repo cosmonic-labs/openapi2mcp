@@ -3,9 +3,8 @@ pub mod mcp_server;
 pub mod template;
 
 mod template_features;
+mod template_files;
 
-use std::io;
-use std::path::PathBuf;
 use std::{fs, path::Path};
 
 use openapiv3::OpenAPI;
@@ -61,36 +60,17 @@ pub fn generate(
     let features = template_features::Features {
         auth: mcp_server.oauth2_info.is_some(),
     };
-    for path_file in get_all_files_in_dir_recursive(project_path)? {
+    for path_file in template_files::get_all_files_in_dir_recursive(project_path)? {
         // skip if file is not readable as text
         if let Ok(contents) = fs::read_to_string(&path_file) {
             let output = template_features::handle_template_features(&features, &contents);
-            fs::write(&path_file, output)?;
+            if let Some(output) = output {
+                fs::write(&path_file, output)?;
+            }
         }
     }
 
     Ok(())
-}
-
-fn get_all_files_in_dir_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
-    fn visit_dir(dir: &Path, output: &mut Vec<PathBuf>) -> io::Result<()> {
-        if dir.is_dir() {
-            for entry in fs::read_dir(dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_dir() {
-                    visit_dir(&path, output)?;
-                } else {
-                    output.push(path);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    let mut output = Vec::new();
-    visit_dir(dir, &mut output)?;
-    Ok(output)
 }
 
 pub fn parse_openapi_spec_from_path<P: AsRef<Path>>(path: P) -> anyhow::Result<OpenAPI> {
