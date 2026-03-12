@@ -28,14 +28,14 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version: 24.x
 
       - name: Setup wash CLI
-        uses: wasmcloud/setup-wash-action@v1.0.0-rc.3
+        uses: wasmcloud/setup-wash-action@v2.0.0-rc.8.1
         with:
-          wash-version: wash-v2.0.0-rc.5
+          wash-version: wash-v2.0.0-rc.8
 
       - name: Build component
         uses: wasmcloud/actions/wash-build@v0.2.0
