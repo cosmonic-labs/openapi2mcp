@@ -2,6 +2,9 @@
 name = "openapi2mcp"
 version = "0.9.0"
 edition = "2024"
+# Starting with Rust 1.94 std::fs makes use of the wasi:fs mutate-directory flag. The jco shims don't support mutate-directory yet (see https://github.com/bytecodealliance/jco/pull/1303)
+# In the meantime, pin to 1.93
+rust-version = "1.93.0"
 
 [lib]
 crate-type = ["lib", "cdylib"]
