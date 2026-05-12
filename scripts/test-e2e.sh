@@ -82,6 +82,14 @@ for dir in ./tests/*/; do
 			echo "Error: Failed to cd into $dir/generated"
 			exit 1
 		}
+		if ! npm install; then
+			echo "Error: npm install failed in $dir/generated"
+			exit 1
+		fi
+		if ! npm run fetch:wit; then
+			echo "Error: npm run wit:fetch failed in $dir/generated"
+			exit 1
+		fi
 		if ! wash build; then
 			echo "Error: Failed to build project in $dir/generated"
 			echo "Check the generated TypeScript code for syntax errors"
