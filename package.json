@@ -9,7 +9,8 @@
   "scripts": {
     "build:wasm": "cargo build --target wasm32-wasip2 --release",
     "build:jco": "jco transpile ./target/wasm32-wasip2/release/openapi2mcp.wasm -o dist",
-    "build": "npm run build:wasm && npm run build:jco"
+    "build": "npm run build:wasm && npm run build:jco",
+    "postinstall": "patch-package"
   },
   "bin": {
     "openapi2mcp": "index.js"
@@ -30,9 +31,11 @@
   },
   "homepage": "https://github.com/cosmonic-labs/openapi2mcp#readme",
   "dependencies": {
-    "@bytecodealliance/preview2-shim": "^0.17.6"
+    "@bytecodealliance/preview2-shim": "0.17.9"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "^1.15.4"
+    "@bytecodealliance/jco": "^1.15.4",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0"
   }
 }
