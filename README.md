@@ -7,7 +7,7 @@ Generate MCP server tools from OpenAPI specifications. Works with [mcp-server-te
 ### Install via npm
 
 ```shell
-npm install -g openapi2mcp
+npm install -g @cosmonic-labs/openapi2mcp
 ```
 
 Or run directly with npx:
