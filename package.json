@@ -31,10 +31,10 @@
   },
   "homepage": "https://github.com/cosmonic-labs/openapi2mcp#readme",
   "dependencies": {
-    "@bytecodealliance/preview2-shim": "0.17.9"
+    "@bytecodealliance/preview2-shim": "0.18.0"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "^1.15.4",
+    "@bytecodealliance/jco": "^1.19.0",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0"
   }
