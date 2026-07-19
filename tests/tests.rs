@@ -51,6 +51,17 @@ mod tests {
     }
 
     #[test]
+    fn xquik() {
+        test_generate(
+            "xquik",
+            GenerateOptions {
+                include_methods: vec![http::Method::GET],
+                ..Default::default()
+            },
+        );
+    }
+
+    #[test]
     fn microsoft_graph() {
         test_generate(
             "microsoft-graph",
