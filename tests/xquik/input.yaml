@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: Xquik fixture
+  version: 1.0.0
+  description: A self-contained fixture based on the MIT-licensed Xquik agent skill.
+externalDocs:
+  description: Xquik agent skill source
+  url: https://github.com/Xquik-dev/x-twitter-scraper
+paths:
+  /tweets/search:
+    get:
+      operationId: searchTweets
+      description: Search public posts using a query.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching posts
+  /users/{username}:
+    get:
+      operationId: getUser
+      description: Get a public profile by username.
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public profile
