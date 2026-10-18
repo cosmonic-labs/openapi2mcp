@@ -52,4 +52,5 @@ jobs:
           package_dir=$(mktemp -d)
           npm pack --pack-destination "$package_dir"
           npm install --prefix "$package_dir/install" "$package_dir"/*.tgz
+          git clone ./mcp-server-template-ts tests/petstore/generated
           "$package_dir/install/node_modules/.bin/openapi2mcp" tests/petstore/input.json --project-path tests/petstore/generated
