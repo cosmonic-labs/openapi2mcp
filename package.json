@@ -1,6 +1,6 @@
 {
   "name": "@cosmonic-labs/openapi2mcp",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Generate MCP servers from OpenAPI specs. Works with https://github.com/cosmonic-labs/mcp-server-template-ts",
   "main": "index.js",
   "directories": {
@@ -10,14 +10,15 @@
     "build:wasm": "cargo build --target wasm32-wasip2 --release",
     "build:jco": "jco transpile ./target/wasm32-wasip2/release/openapi2mcp.wasm -o dist",
     "build": "npm run build:wasm && npm run build:jco",
-    "postinstall": "patch-package"
+    "prepare": "patch-package --error-on-fail"
   },
   "bin": {
     "openapi2mcp": "index.js"
   },
   "files": [
     "dist",
-    "index.js"
+    "index.js",
+    "patches"
   ],
   "type": "module",
   "repository": {
@@ -35,7 +36,9 @@
   },
   "devDependencies": {
     "@bytecodealliance/jco": "^1.19.0",
-    "patch-package": "^8.0.1",
-    "postinstall-postinstall": "^2.1.0"
-  }
+    "patch-package": "^8.0.1"
+  },
+  "bundleDependencies": [
+    "@bytecodealliance/preview2-shim"
+  ]
 }
