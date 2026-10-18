@@ -46,3 +46,10 @@ jobs:
 
       - name: Generate MCP from OpenAPI spec
         run: ./scripts/test-e2e.sh
+
+      - name: Verify npm package
+        run: |
+          package_dir=$(mktemp -d)
+          npm pack --pack-destination "$package_dir"
+          npm install --prefix "$package_dir/install" "$package_dir"/*.tgz
+          "$package_dir/install/node_modules/.bin/openapi2mcp" tests/petstore/input.json --project-path tests/petstore/generated
